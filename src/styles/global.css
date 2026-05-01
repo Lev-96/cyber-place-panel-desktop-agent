@@ -1,0 +1,185 @@
+@font-face {
+  font-family: "Playstation";
+  src: url("/fonts/Playstation.ttf") format("truetype");
+  font-weight: 400 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Inter";
+  src: url("/fonts/Inter.ttf") format("truetype");
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, #root {
+  height: 100%; width: 100%;
+  margin: 0; padding: 0;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-drag: none;
+  cursor: default;
+}
+
+body {
+  background: #020514;
+  color: #ffffff;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+}
+
+button { font-family: inherit; cursor: pointer; }
+input { font: inherit; color: inherit; outline: none; }
+
+.full {
+  position: fixed; inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  /* Layered background: dark overlay → photo → fallback gradient.
+     The overlay keeps text legible across any image. */
+  background:
+    linear-gradient(180deg, rgba(2, 5, 20, 0.65) 0%, rgba(2, 5, 20, 0.85) 100%),
+    radial-gradient(ellipse at center, rgba(7, 221, 241, 0.08) 0%, transparent 60%),
+    url("/bg/lock.jpg") center/cover no-repeat,
+    radial-gradient(ellipse at center, #0a1530 0%, #020514 100%);
+  background-blend-mode: normal, screen, normal, normal;
+}
+
+.full.full-setup {
+  background:
+    linear-gradient(180deg, rgba(2, 5, 20, 0.7) 0%, rgba(2, 5, 20, 0.9) 100%),
+    url("/bg/setup.jpg") center/cover no-repeat,
+    #020514;
+}
+
+.brand {
+  font-family: "Playstation", "Inter", sans-serif;
+  font-size: 36px; font-weight: 800;
+  background: linear-gradient(90deg, #07ddf1, #32aff7, #d152fa);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  letter-spacing: 4px;
+  margin-bottom: 24px;
+  text-shadow: 0 0 40px rgba(7, 221, 241, 0.15);
+  animation: cp-brand-in 480ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes cp-brand-in {
+  from { opacity: 0; transform: translateY(-8px) scale(0.96); letter-spacing: 12px; }
+  to   { opacity: 1; transform: none; letter-spacing: 4px; }
+}
+
+.card {
+  width: min(420px, 90vw);
+  background: rgba(11, 18, 36, 0.78);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(7, 221, 241, 0.18);
+  border-radius: 16px;
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow:
+    0 18px 60px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(7, 221, 241, 0.04) inset,
+    0 0 60px rgba(7, 221, 241, 0.06);
+  animation: cp-card-in 380ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes cp-card-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
+
+.card h1 { margin: 0; font-size: 20px; }
+.card .hint { color: #94a3b8; font-size: 13px; }
+
+.input {
+  width: 100%;
+  background: #020514;
+  border: 1px solid #1f2a44;
+  color: #ffffff;
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 16px;
+}
+.input:focus { border-color: #07ddf1; }
+
+.btn {
+  background: #07ddf1;
+  color: #020514;
+  border: none;
+  font-weight: 700;
+  padding: 12px 18px;
+  border-radius: 8px;
+  font-size: 15px;
+  transition: opacity 120ms;
+}
+.btn:hover { opacity: 0.9; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn.ghost { background: transparent; color: #94a3b8; border: 1px solid #1f2a44; }
+.btn.danger { background: #ef4444; color: #fff; }
+
+.error { color: #ef4444; font-size: 13px; }
+
+.timer {
+  font-variant-numeric: tabular-nums;
+  font-size: 84px;
+  font-weight: 800;
+  letter-spacing: 4px;
+  margin: 8px 0;
+  color: #07ddf1;
+  text-shadow: 0 0 30px rgba(7, 221, 241, 0.4);
+}
+.timer.warn { color: #f59e0b; text-shadow: 0 0 30px rgba(245, 158, 11, 0.5); }
+.timer.crit { color: #ef4444; text-shadow: 0 0 30px rgba(239, 68, 68, 0.6); animation: pulse 1s infinite; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.6; }
+}
+
+.muted { color: #94a3b8; font-size: 13px; }
+
+.status-pill {
+  position: fixed;
+  top: 12px;
+  right: 16px;
+  font-size: 11px;
+  color: #94a3b8;
+  background: rgba(11, 18, 36, 0.7);
+  border: 1px solid #1f2a44;
+  border-radius: 999px;
+  padding: 4px 10px;
+}
+
+.status-pill.connected::before { content: "● "; color: #22c55e; }
+.status-pill.connecting::before { content: "● "; color: #f59e0b; }
+.status-pill.offline::before, .status-pill.error::before { content: "● "; color: #ef4444; }
+
+.row { display: flex; gap: 8px; align-items: center; }
+
+.kbd {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 8px;
+}
+.kbd button {
+  background: #0b1224;
+  border: 1px solid #1f2a44;
+  color: #fff;
+  font-size: 22px;
+  font-weight: 700;
+  padding: 14px 0;
+  border-radius: 10px;
+}
+.kbd button:hover { border-color: #07ddf1; }
+.kbd button.del { background: #1a0a14; border-color: #4a1a2a; }

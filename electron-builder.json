@@ -1,0 +1,32 @@
+{
+  "appId": "com.cyberplace.clientagent",
+  "productName": "Cyberplace Client",
+  "directories": { "output": "release", "buildResources": "build" },
+  "files": [
+    "electron/dist/**/*",
+    "dist/web/**/*",
+    "package.json"
+  ],
+  "extraMetadata": { "main": "electron/dist/main.js" },
+  "win": {
+    "target": [{ "target": "nsis", "arch": ["x64"] }]
+  },
+  "linux": {
+    "target": [
+      { "target": "AppImage", "arch": ["x64"] },
+      { "target": "deb",      "arch": ["x64"] }
+    ],
+    "category": "Utility"
+  },
+  "mac": {
+    "target": [{ "target": "dmg", "arch": ["x64", "arm64"] }],
+    "category": "public.app-category.utilities"
+  },
+  "nsis": {
+    "oneClick": true,
+    "perMachine": true,
+    "runAfterFinish": true
+  },
+  "asar": true,
+  "publish": null
+}
