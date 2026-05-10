@@ -9,7 +9,7 @@
   ],
   "extraMetadata": { "main": "electron/dist/main.js" },
   "win": {
-    "target": [{ "target": "nsis", "arch": ["x64"] }]
+    "target": [{ "target": "zip", "arch": ["x64"] }]
   },
   "linux": {
     "target": [
