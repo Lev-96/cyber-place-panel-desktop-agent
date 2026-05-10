@@ -5,7 +5,12 @@ import StatusPill from "./StatusPill";
 interface Props {
   config: AgentConfigJson;
   status: TransportStatus;
-  remainingMs: number;
+  /**
+   * Milliseconds left on a fixed-tariff session, or `null` for
+   * open-mode (pay-by-hour) sessions where the cashier stops
+   * the session manually and there's no countdown to render.
+   */
+  remainingMs: number | null;
   userDisplayName?: string;
   expiring: boolean;
 }
@@ -20,15 +25,36 @@ const fmt = (ms: number) => {
 };
 
 const ActiveScreen = ({ config, status, remainingMs, userDisplayName, expiring }: Props) => {
-  const cls = remainingMs <= 30_000 ? "timer crit" : expiring ? "timer warn" : "timer";
+  const isOpenSession = remainingMs === null;
+  // Countdown classes are only meaningful for fixed sessions;
+  // open sessions get a neutral pill (`timer` baseline) since
+  // they never approach "critical" or "warning" — the cashier
+  // is the one tracking time, not the agent.
+  const cls =
+    isOpenSession
+      ? "timer"
+      : remainingMs <= 30_000
+        ? "timer crit"
+        : expiring
+          ? "timer warn"
+          : "timer";
   return (
     <div className="full">
       <StatusPill status={status} />
       <div className="brand">CYBER PLACE</div>
       <div className="card" style={{ alignItems: "center", textAlign: "center" }}>
         <div className="muted">{userDisplayName ? `Welcome, ${userDisplayName}` : "Session in progress"}</div>
-        <div className={cls}>{fmt(remainingMs)}</div>
-        <div className="muted">{config.pcLabel} · ask cashier to extend before time ends</div>
+        {/* Fixed → countdown; open → static "Open" label so the
+            player still gets the "session is running" signal but
+            isn't shown a misleading 00:00 stuck timer (which is
+            what the epoch-on-null bug used to render before the
+            domain-level fix). */}
+        <div className={cls}>{isOpenSession ? "Open" : fmt(remainingMs)}</div>
+        <div className="muted">
+          {isOpenSession
+            ? `${config.pcLabel} · pay-by-hour, cashier stops the session`
+            : `${config.pcLabel} · ask cashier to extend before time ends`}
+        </div>
       </div>
     </div>
   );

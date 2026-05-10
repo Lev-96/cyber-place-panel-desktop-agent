@@ -14,7 +14,9 @@ const AgentApp = () => {
   const [config, setConfig] = useState<AgentConfigJson | null>(null);
   const [state, setState] = useState<AgentState>({ kind: "boot" });
   const [status, setStatus] = useState<TransportStatus>("disconnected");
-  const [remaining, setRemaining] = useState(0);
+  // null = open-mode session with no countdown; 0 = no session at all;
+  // positive = ms left on a fixed-tariff session.
+  const [remaining, setRemaining] = useState<number | null>(0);
 
   useEffect(() => {
     void agentConfig.load().then((c) => {

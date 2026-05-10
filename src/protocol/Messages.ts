@@ -40,14 +40,26 @@ export interface AgentEvent<T = unknown> {
 export interface SessionStartPayload {
   sessionId: number;
   startedAt: string; // ISO
-  endsAt: string;    // ISO
+  /**
+   * ISO end timestamp for fixed-tariff sessions, or `null` for
+   * open-mode (pay-by-hour) sessions where the cashier stops
+   * the session manually. The agent MUST treat `null` as
+   * "session has no fixed end" — not as "expires now". The
+   * pre-2026-05-11 contract typed this as `string` and the
+   * agent did `new Date(p.endsAt)`, which on null gave the
+   * epoch (1970-01-01), tripped `remainingMs <= 0` and locked
+   * the screen the moment a cashier started an open-mode
+   * session.
+   */
+  endsAt: string | null;
   user?: { id: number; displayName: string };
   packageName?: string;
 }
 
 export interface SessionUpdatePayload {
   sessionId: number;
-  endsAt: string;
+  /** Same null semantics as `SessionStartPayload.endsAt`. */
+  endsAt: string | null;
 }
 
 export interface SessionStopPayload {

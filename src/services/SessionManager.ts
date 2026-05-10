@@ -17,7 +17,12 @@ import { ITransport, newId } from "@/transport/ITransport";
 
 interface Events {
   state: AgentState;
-  remaining: number; // ms
+  /**
+   * Milliseconds left on the running session, or `null` for
+   * open-mode sessions where there's no fixed end. The UI maps
+   * null to "Open session" instead of rendering a countdown.
+   */
+  remaining: number | null;
 }
 
 const HEARTBEAT_MS = 5_000;
@@ -70,7 +75,8 @@ export class SessionManager {
 
   on<K extends keyof Events>(e: K, l: (p: Events[K]) => void) { return this.emitter.on(e, l); }
   current(): AgentState { return this.state; }
-  remainingMs(): number { return this.session?.remainingMs() ?? 0; }
+  /** Mirrors `Session.remainingMs()` — null for open sessions, 0 when no session. */
+  remainingMs(): number | null { return this.session ? this.session.remainingMs() : 0; }
 
   private handleCommand(cmd: ServerCommand) {
     switch (cmd.kind) {
@@ -86,10 +92,16 @@ export class SessionManager {
   }
 
   private onSessionStart(p: SessionStartPayload) {
+    // `p.endsAt === null` ⇒ open-mode session (pay-by-hour). The
+    // pre-fix code did `new Date(p.endsAt)` unconditionally, which
+    // for null gave the epoch (1970-01-01) and the tick loop
+    // locked the screen on the next iteration. Branch explicitly
+    // so the Session carries a real `Date | null` discriminator.
+    const endsAt = p.endsAt === null ? null : new Date(p.endsAt);
     this.session = new Session(
       p.sessionId,
       new Date(p.startedAt),
-      new Date(p.endsAt),
+      endsAt,
       p.user?.displayName,
       p.packageName,
     );
@@ -105,13 +117,19 @@ export class SessionManager {
 
   private onSessionUpdate(p: SessionUpdatePayload) {
     if (!this.session || this.session.id !== p.sessionId) return;
+    // null endsAt on update is rare (would mean "convert this
+    // session into open-mode") — Session.extend handles it
+    // null-safely but we still skip the state churn for it
+    // since open sessions don't have a countdown.
+    if (p.endsAt === null) return;
     this.session.extend(new Date(p.endsAt));
     if (this.state.kind === "active" || this.state.kind === "expiring") {
-      this.setState({
-        kind: this.session.isExpiringSoon(new Date(), EXPIRING_THRESHOLD_MS) ? "expiring" : "active",
-        sessionId: this.session.id,
-        endsAt: this.session.endsAt,
-      });
+      const expiringSoon = this.session.isExpiringSoon(new Date(), EXPIRING_THRESHOLD_MS);
+      this.setState(
+        expiringSoon && this.session.endsAt !== null
+          ? { kind: "expiring", sessionId: this.session.id, endsAt: this.session.endsAt }
+          : { kind: "active", sessionId: this.session.id, endsAt: this.session.endsAt },
+      );
     }
   }
 
@@ -142,13 +160,18 @@ export class SessionManager {
 
   private startHeartbeat() {
     this.heartbeat = setInterval(() => {
+      // `remainingSec` stays undefined for open sessions — the
+      // server-side billing prorates against `started_at` and
+      // doesn't need the agent to compute "time left". Reporting
+      // a zero or epoch-based number would just lie.
+      const remaining = this.session?.remainingMs();
       const payload: AgentHeartbeatPayload = {
         branchId: this.config.branchId,
         pcId: this.config.pcId,
         ts: Date.now(),
         state: this.heartbeatState(),
         sessionId: this.session?.id,
-        remainingSec: this.session ? Math.floor(this.session.remainingMs() / 1_000) : undefined,
+        remainingSec: remaining != null ? Math.floor(remaining / 1_000) : undefined,
       };
       this.send("agent.heartbeat", payload);
     }, HEARTBEAT_MS);
@@ -159,9 +182,14 @@ export class SessionManager {
       if (!this.session) return;
       const remaining = this.session.remainingMs();
       this.emitter.emit("remaining", remaining);
+      // null ⇒ open-mode session; never auto-expire, never enter
+      // the "expiring" warning state. Cashier is responsible for
+      // calling stop. Skipping both branches is what unblocked
+      // the agent from instant-locking on open-session start.
+      if (remaining === null) return;
       if (remaining <= 0) {
         this.onSessionStop({ sessionId: this.session.id, reason: "expired" });
-      } else if (remaining <= EXPIRING_THRESHOLD_MS && this.state.kind === "active") {
+      } else if (remaining <= EXPIRING_THRESHOLD_MS && this.state.kind === "active" && this.session.endsAt !== null) {
         this.setState({ kind: "expiring", sessionId: this.session.id, endsAt: this.session.endsAt });
       }
     }, TICK_MS);
