@@ -1,5 +1,6 @@
 import { AgentConfigJson } from "@/infrastructure/AgentBridge";
 import { TransportStatus } from "@/transport/ITransport";
+import BrandMark from "./BrandMark";
 import StatusPill from "./StatusPill";
 
 interface Props {
@@ -41,7 +42,7 @@ const ActiveScreen = ({ config, status, remainingMs, userDisplayName, expiring }
   return (
     <div className="full">
       <StatusPill status={status} />
-      <div className="brand">CYBER PLACE</div>
+      <BrandMark />
       <div className="card" style={{ alignItems: "center", textAlign: "center" }}>
         <div className="muted">{userDisplayName ? `Welcome, ${userDisplayName}` : "Session in progress"}</div>
         {/* Fixed → countdown; open → static "Open" label so the

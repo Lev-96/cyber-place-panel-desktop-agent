@@ -1,5 +1,6 @@
 import { AgentConfigJson } from "@/infrastructure/AgentBridge";
 import { FormEvent, useState } from "react";
+import BrandMark from "./BrandMark";
 
 interface Props {
   initial?: AgentConfigJson | null;
@@ -28,7 +29,7 @@ const SetupScreen = ({ initial, onSubmit }: Props) => {
 
   return (
     <div className="full full-setup">
-      <div className="brand">CYBER PLACE · CLIENT</div>
+      <BrandMark text="CYBER PLACE · CLIENT" />
       <form className="card" onSubmit={submit}>
         <h1>First-time setup</h1>
         <p className="hint">Configure this PC. Get the branch ID, PC ID and pairing token from the cashier panel.</p>

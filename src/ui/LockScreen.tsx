@@ -1,6 +1,7 @@
 import { AgentConfigJson } from "@/infrastructure/AgentBridge";
 import { TransportStatus } from "@/transport/ITransport";
 import { useState } from "react";
+import BrandMark from "./BrandMark";
 import StatusPill from "./StatusPill";
 
 interface Props {
@@ -18,7 +19,7 @@ const LockScreen = ({ config, status }: Props) => {
   return (
     <div className="full">
       <StatusPill status={status} />
-      <div className="brand">CYBER PLACE</div>
+      <BrandMark />
       <div className="card">
         <h1>{config.pcLabel}</h1>
         <p className="hint">Ask the cashier to start a session for this PC.</p>

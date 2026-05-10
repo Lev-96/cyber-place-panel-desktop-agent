@@ -57,7 +57,29 @@ input { font: inherit; color: inherit; outline: none; }
     #020514;
 }
 
+/* `.brand` is now a flex wrapper (logo + wordmark). The gradient
+ * + animated letter-spacing live on `.brand-text` so the bitmap
+ * logo isn't masked by `background-clip: text` or distorted by
+ * letter-spacing changes. The wrapper still owns the entrance
+ * animation so logo and wordmark fade in together. */
 .brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-bottom: 24px;
+  animation: cp-brand-in 480ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.brand-logo {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  flex-shrink: 0;
+  /* Same teal halo as the wordmark's text-shadow so the two
+   * elements feel like one mark instead of an icon next to text. */
+  filter: drop-shadow(0 0 18px rgba(7, 221, 241, 0.45));
+}
+.brand-text {
   font-family: "Playstation", "Inter", sans-serif;
   font-size: 36px; font-weight: 800;
   background: linear-gradient(90deg, #07ddf1, #32aff7, #d152fa);
@@ -65,14 +87,12 @@ input { font: inherit; color: inherit; outline: none; }
   background-clip: text;
   color: transparent;
   letter-spacing: 4px;
-  margin-bottom: 24px;
   text-shadow: 0 0 40px rgba(7, 221, 241, 0.15);
-  animation: cp-brand-in 480ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 @keyframes cp-brand-in {
-  from { opacity: 0; transform: translateY(-8px) scale(0.96); letter-spacing: 12px; }
-  to   { opacity: 1; transform: none; letter-spacing: 4px; }
+  from { opacity: 0; transform: translateY(-8px) scale(0.96); }
+  to   { opacity: 1; transform: none; }
 }
 
 .card {
