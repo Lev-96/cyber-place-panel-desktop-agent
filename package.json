@@ -17,6 +17,8 @@
     "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p electron/tsconfig.json --noEmit"
   },
   "dependencies": {
+    "electron-log": "^5.4.4",
+    "electron-updater": "^6.8.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

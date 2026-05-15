@@ -12,5 +12,5 @@
     "resolveJsonModule": true,
     "types": ["node"]
   },
-  "include": ["main.ts", "preload.ts", "storage.ts"]
+  "include": ["main.ts", "preload.ts", "storage.ts", "updates/**/*.ts"]
 }

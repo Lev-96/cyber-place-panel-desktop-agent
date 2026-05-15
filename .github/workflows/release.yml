@@ -1,0 +1,52 @@
+name: Release
+
+# Fires when a SemVer tag is pushed (e.g. `git tag v1.0.4 && git push --tags`).
+# The job builds installers for all three desktop targets in parallel and
+# uploads them, plus the `latest-*.yml` electron-updater manifests, to the
+# GitHub Release that auto-creates for the tag.
+#
+# `latest-linux.yml`, `latest.yml` (Windows), and `latest-mac.yml` are what
+# the Electron `autoUpdater` polls — without them the client never discovers
+# the new build. `electron-builder --publish always` writes both the binary
+# and the manifest in one step.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            builder_arg: "--linux"
+          - os: windows-latest
+            builder_arg: "--win"
+          - os: macos-latest
+            builder_arg: "--mac"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install
+        run: npm ci
+
+      - name: Build (web + electron)
+        run: npm run build
+
+      - name: Package and publish to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx electron-builder ${{ matrix.builder_arg }} --publish always

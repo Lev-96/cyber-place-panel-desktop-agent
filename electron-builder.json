@@ -9,12 +9,11 @@
   ],
   "extraMetadata": { "main": "electron/dist/main.js" },
   "win": {
-    "target": [{ "target": "zip", "arch": ["x64"] }]
+    "target": [{ "target": "nsis", "arch": ["x64"] }]
   },
   "linux": {
     "target": [
-      { "target": "AppImage", "arch": ["x64"] },
-      { "target": "deb",      "arch": ["x64"] }
+      { "target": "AppImage", "arch": ["x64"] }
     ],
     "category": "Utility"
   },
@@ -28,5 +27,12 @@
     "runAfterFinish": true
   },
   "asar": true,
-  "publish": null
+  "publish": [
+    {
+      "provider": "github",
+      "owner": "Lev-96",
+      "repo": "cyber-place-panel-desktop-agent",
+      "releaseType": "release"
+    }
+  ]
 }

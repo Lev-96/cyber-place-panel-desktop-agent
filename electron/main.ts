@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { hostname } from "node:os";
 import { join } from "node:path";
 import { FileStore } from "./storage";
+import { AgentUpdateService } from "./updates/UpdateService";
 
 interface AgentConfigJson {
   serverUrl: string;
@@ -24,6 +25,7 @@ app.commandLine.appendSwitch("disable-features", "Autofill");
 let mainWindow: BrowserWindow | null = null;
 let store: FileStore<AgentConfigJson> | null = null;
 let unlocked = false;
+let updateService: AgentUpdateService | null = null;
 
 const lock = app.requestSingleInstanceLock();
 if (!lock) app.quit();
@@ -138,6 +140,8 @@ app.whenReady().then(async () => {
   ipcMain.handle("agent:lock", () => {
     unlocked = false;
     if (mainWindow && KIOSK) showLockOverlay(mainWindow);
+    // Locked → safe to swap binaries if a download is parked.
+    updateService?.tryInstallIfLocked();
   });
   ipcMain.handle("agent:unlock", () => {
     unlocked = true;
@@ -148,6 +152,14 @@ app.whenReady().then(async () => {
   ipcMain.handle("agent:getMachineId", () => safeMachineId());
   ipcMain.handle("agent:getAppVersion", () => app.getVersion());
 
+  // Auto-update — kiosk-respecting. The service buffers a downloaded
+  // update if a session is currently running (`!locked`); installation
+  // happens on the next lock transition or on app quit. We pass a
+  // `isLocked()` closure (not the boolean itself) so the gate always
+  // reflects the live state, not a snapshot at construction time.
+  updateService = new AgentUpdateService(() => !unlocked);
+  updateService.startPolling();
+
   await createWindow();
 
   app.on("activate", () => {
@@ -155,7 +167,10 @@ app.whenReady().then(async () => {
   });
 });
 
-app.on("will-quit", () => globalShortcut.unregisterAll());
+app.on("will-quit", () => {
+  globalShortcut.unregisterAll();
+  updateService?.stopPolling();
+});
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
