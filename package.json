@@ -1,10 +1,16 @@
 {
   "name": "cyber-place-client-agent",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "private": true,
   "main": "electron/dist/main.js",
-  "author": "Cyber Place <dev@develop.com>",
-  "homepage": "https://cyberplace.app",
+  "description": "Cyber Place kiosk agent — runs on each gaming PC, locks the workstation when no session is active, and unlocks when the cashier starts one.",
+  "homepage": "https://cyberplace.pro",
+  "license": "UNLICENSED",
+  "author": {
+    "name": "Cyber Place",
+    "email": "support@cyberplace.pro",
+    "url": "https://cyberplace.pro"
+  },
   "scripts": {
     "dev": "vite",
     "build:web": "tsc -p tsconfig.app.json && vite build",

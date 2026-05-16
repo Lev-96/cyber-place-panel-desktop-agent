@@ -1,6 +1,7 @@
 {
   "appId": "com.cyberplace.clientagent",
   "productName": "Cyberplace Client",
+  "copyright": "Copyright © 2026 Cyber Place. All rights reserved.",
   "directories": { "output": "release", "buildResources": "build" },
   "files": [
     "electron/dist/**/*",
@@ -8,8 +9,12 @@
     "package.json"
   ],
   "extraMetadata": { "main": "electron/dist/main.js" },
+  "electronLanguages": ["en-US", "ru-RU"],
   "win": {
-    "target": [{ "target": "nsis", "arch": ["x64"] }]
+    "target": [{ "target": "nsis", "arch": ["x64"] }],
+    "publisherName": "Cyber Place",
+    "legalTrademarks": "Cyber Place",
+    "verifyUpdateCodeSignature": false
   },
   "linux": {
     "target": [
@@ -24,9 +29,14 @@
   "nsis": {
     "oneClick": true,
     "perMachine": true,
-    "runAfterFinish": true
+    "runAfterFinish": true,
+    "differentialPackage": true,
+    "deleteAppDataOnUninstall": false,
+    "displayLanguageSelector": false,
+    "shortcutName": "Cyberplace Client"
   },
   "asar": true,
+  "electronUpdaterCompatibility": ">=2.16",
   "publish": [
     {
       "provider": "github",
