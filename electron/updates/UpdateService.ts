@@ -113,7 +113,10 @@ export class AgentUpdateService {
       return;
     }
     log.info(`[agent-updater] operator clicked Restart → quitAndInstall into v${this.state.availableVersion}`);
-    autoUpdater.quitAndInstall(false, true);
+    // isSilent=true → pass /S to NSIS so the installer wizard never
+    // appears; the kiosk swaps binaries and relaunches without any
+    // operator interaction. Pairs with `nsis.oneClick: true`.
+    autoUpdater.quitAndInstall(true, true);
   }
 
   getState(): UpdateState {
