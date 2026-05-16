@@ -8,6 +8,9 @@
     "dist/web/**/*",
     "package.json"
   ],
+  "extraResources": [
+    { "from": "build/icon.png", "to": "build/icon.png" }
+  ],
   "extraMetadata": { "main": "electron/dist/main.js" },
   "electronLanguages": ["en-US", "ru-RU"],
   "win": {
@@ -38,7 +41,10 @@
     "displayLanguageSelector": false,
     "shortcutName": "Cyberplace Client",
     "installerIcon": "build/icon.ico",
-    "uninstallerIcon": "build/icon.ico"
+    "uninstallerIcon": "build/icon.ico",
+    "createDesktopShortcut": "always",
+    "createStartMenuShortcut": true,
+    "menuCategory": "Cyber Place"
   },
   "asar": true,
   "electronUpdaterCompatibility": ">=2.16",

@@ -4,6 +4,7 @@ import { hostname } from "node:os";
 import { join } from "node:path";
 import { FileStore } from "./storage";
 import { AgentUpdateService, broadcastUpdateState } from "./updates/UpdateService";
+import { bundledIconPath, ensureLinuxDesktopIntegration } from "./linuxIntegration";
 
 interface AgentConfigJson {
   serverUrl: string;
@@ -119,6 +120,17 @@ const createWindow = async () => {
 app.whenReady().then(async () => {
   store = new FileStore<AgentConfigJson>(join(app.getPath("userData"), "agent.config.json"));
   await store.load();
+
+  // Linux .desktop integration — same idea as the panel: an AppImage
+  // doesn't register itself with freedesktop, so we write a per-user
+  // .desktop entry so the agent shows up in the application menu
+  // with its icon. No-op on Windows/macOS.
+  ensureLinuxDesktopIntegration({
+    appId: "cyberplace-client-agent",
+    displayName: "Cyberplace Client",
+    comment: "Cyber Place kiosk agent — gaming PC lock/unlock controller",
+    iconSourcePath: bundledIconPath(),
+  });
 
   // Auto-clear non-essential caches on each startup so the kiosk PC doesn't
   // accumulate junk (HTTP cache, shader cache, code cache) over months of
