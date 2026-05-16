@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { hostname } from "node:os";
 import { join } from "node:path";
 import { FileStore } from "./storage";
-import { AgentUpdateService } from "./updates/UpdateService";
+import { AgentUpdateService, broadcastUpdateState } from "./updates/UpdateService";
 
 interface AgentConfigJson {
   serverUrl: string;
@@ -140,8 +140,6 @@ app.whenReady().then(async () => {
   ipcMain.handle("agent:lock", () => {
     unlocked = false;
     if (mainWindow && KIOSK) showLockOverlay(mainWindow);
-    // Locked → safe to swap binaries if a download is parked.
-    updateService?.tryInstallIfLocked();
   });
   ipcMain.handle("agent:unlock", () => {
     unlocked = true;
@@ -152,12 +150,21 @@ app.whenReady().then(async () => {
   ipcMain.handle("agent:getMachineId", () => safeMachineId());
   ipcMain.handle("agent:getAppVersion", () => app.getVersion());
 
-  // Auto-update — kiosk-respecting. The service buffers a downloaded
-  // update if a session is currently running (`!locked`); installation
-  // happens on the next lock transition or on app quit. We pass a
-  // `isLocked()` closure (not the boolean itself) so the gate always
-  // reflects the live state, not a snapshot at construction time.
-  updateService = new AgentUpdateService(() => !unlocked);
+  // Auto-update — operator-driven. The renderer mounts a non-closeable
+  // modal when status === "downloaded"; the cashier clicks Restart to
+  // apply. Player-safety still holds because the agent window is
+  // opacity-0 + click-through during an active session, so the modal
+  // is in the DOM but invisible until the next lock-screen render.
+  updateService = new AgentUpdateService();
+  updateService.onState(broadcastUpdateState);
+  ipcMain.handle("updates:check", () => {
+    if (!updateService) return null;
+    return updateService.getState();
+  });
+  ipcMain.handle("updates:install", () => {
+    updateService?.installAndRestart();
+  });
+  ipcMain.handle("updates:getState", () => updateService?.getState() ?? null);
   updateService.startPolling();
 
   await createWindow();

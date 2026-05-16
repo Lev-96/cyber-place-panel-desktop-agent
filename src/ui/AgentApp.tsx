@@ -9,6 +9,7 @@ import ActiveScreen from "./ActiveScreen";
 import LockScreen from "./LockScreen";
 import OfflineScreen from "./OfflineScreen";
 import SetupScreen from "./SetupScreen";
+import UpdateReadyModal from "./UpdateReadyModal";
 
 const AgentApp = () => {
   const [config, setConfig] = useState<AgentConfigJson | null>(null);
@@ -48,24 +49,38 @@ const AgentApp = () => {
     };
   }, [config]);
 
-  if (state.kind === "setup" || (!config && state.kind === "boot")) {
-    return <SetupScreen onSubmit={(c) => { setConfig(c); setState({ kind: "connecting" }); }} initial={config} />;
-  }
-  if (!config) return <div className="full"><div className="muted">Starting…</div></div>;
+  const screen = (() => {
+    if (state.kind === "setup" || (!config && state.kind === "boot")) {
+      return <SetupScreen onSubmit={(c) => { setConfig(c); setState({ kind: "connecting" }); }} initial={config} />;
+    }
+    if (!config) return <div className="full"><div className="muted">Starting…</div></div>;
 
-  if (state.kind === "active" || state.kind === "expiring") {
-    return (
-      <ActiveScreen
-        config={config}
-        status={status}
-        remainingMs={remaining}
-        userDisplayName={state.kind === "active" ? state.userDisplayName : undefined}
-        expiring={state.kind === "expiring"}
-      />
-    );
-  }
-  if (state.kind === "offline") return <OfflineScreen config={config} />;
-  return <LockScreen config={config} status={status} />;
+    if (state.kind === "active" || state.kind === "expiring") {
+      return (
+        <ActiveScreen
+          config={config}
+          status={status}
+          remainingMs={remaining}
+          userDisplayName={state.kind === "active" ? state.userDisplayName : undefined}
+          expiring={state.kind === "expiring"}
+        />
+      );
+    }
+    if (state.kind === "offline") return <OfflineScreen config={config} />;
+    return <LockScreen config={config} status={status} />;
+  })();
+
+  // Modal mounted as a sibling so it overlays whichever screen is
+  // active. During an active session the agent window is opacity-0
+  // + click-through so the modal is invisible to the player; when
+  // the session ends and the lock screen comes back, the modal
+  // surfaces on top of it.
+  return (
+    <>
+      {screen}
+      <UpdateReadyModal />
+    </>
+  );
 };
 
 export default AgentApp;

@@ -1,6 +1,6 @@
 {
   "name": "cyber-place-client-agent",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "private": true,
   "main": "electron/dist/main.js",
   "author": "Cyber Place <dev@develop.com>",

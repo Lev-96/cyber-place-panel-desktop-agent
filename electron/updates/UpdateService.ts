@@ -1,4 +1,4 @@
-import { app } from "electron";
+import { app, BrowserWindow } from "electron";
 import log from "electron-log";
 import { autoUpdater, type UpdateInfo, type ProgressInfo } from "electron-updater";
 
@@ -11,19 +11,17 @@ import { autoUpdater, type UpdateInfo, type ProgressInfo } from "electron-update
  * player off the seat mid-game. So the service buffers a downloaded
  * update and only installs it during the idle/locked window.
  *
- * Lock convention (decided by `main.ts`):
- *   - `locked === true`  → no active session, safe to swap binaries.
- *   - `locked === false` → cashier unlocked for a player; the agent
- *                          window is hidden behind the kiosk overlay
- *                          and the player is currently using the PC.
+ * As of v1.0.4 the install timing is operator-driven: the renderer
+ * shows a non-closeable "update ready" modal on the lock screen and
+ * the cashier clicks "Restart" to apply. Auto-install on lock was
+ * removed so the UX matches the panel exactly. Safety net:
+ * `autoInstallOnAppQuit = true` still applies the update on the next
+ * power cycle / reboot if the cashier never gets to the modal.
  *
- * `tryInstallIfLocked()` is the single chokepoint. It's called:
- *   - immediately on `update-downloaded` if locked already, and
- *   - again whenever main.ts sees a lock transition.
- *
- * No renderer surface — agent renderer is a 1×1 hidden overlay during
- * gameplay; we don't expose IPC to it. Reporting back to the operator
- * happens via electron-log file (~/userData/logs/agent.log).
+ * Renderer surface: state transitions are fanned out via the
+ * `onState()` subscription so the preload bridge can mirror them to
+ * `window.cyberplaceUpdates`. Same shape as the panel UpdateService
+ * on purpose — a future shared package can be lifted out of both.
  */
 export type UpdateStatus =
   | "idle"
@@ -45,6 +43,7 @@ export interface UpdateState {
 
 export class AgentUpdateService {
   private state: UpdateState;
+  private listeners = new Set<(state: UpdateState) => void>();
   /**
    * Backstop polling cadence. `electron-updater`'s GitHub provider
    * does NOT auto-poll; calling `checkForUpdates()` is up to us. Ten
@@ -62,7 +61,7 @@ export class AgentUpdateService {
 
   private pollHandle: NodeJS.Timeout | null = null;
 
-  constructor(private isLocked: () => boolean) {
+  constructor() {
     this.state = {
       status: "idle",
       currentVersion: app.getVersion(),
@@ -102,26 +101,33 @@ export class AgentUpdateService {
   }
 
   /**
-   * Re-evaluate the install gate. Called by main.ts whenever the lock
-   * state transitions, AND inside the `update-downloaded` handler.
-   * Idempotent: when not in `downloaded` or `deferred`, this is a no-op.
+   * Install the previously downloaded update and restart the agent.
+   * Operator-driven: called from the renderer's modal "Restart"
+   * button via the `updates:install` IPC channel. No-op when the
+   * state is anything other than `downloaded` — protects against a
+   * double-click while the install is already underway.
    */
-  tryInstallIfLocked(): void {
-    if (this.state.status !== "downloaded" && this.state.status !== "deferred") return;
-    if (!this.isLocked()) {
-      // Cashier has the kiosk unlocked — a player is on the seat.
-      // Park the update; the next lock transition will retry.
-      if (this.state.status !== "deferred") {
-        this.update({ status: "deferred" });
-      }
+  installAndRestart(): void {
+    if (this.state.status !== "downloaded") {
+      log.warn(`[agent-updater] installAndRestart called in status=${this.state.status}; ignoring`);
       return;
     }
-    log.info(`[agent-updater] kiosk locked → quitAndInstall into v${this.state.availableVersion}`);
+    log.info(`[agent-updater] operator clicked Restart → quitAndInstall into v${this.state.availableVersion}`);
     autoUpdater.quitAndInstall(false, true);
   }
 
   getState(): UpdateState {
     return { ...this.state };
+  }
+
+  /**
+   * Subscribe to every state transition. Returns the unsubscribe fn
+   * so callers can clean up on shutdown. Used by main.ts to forward
+   * state to renderer windows over the `updates:state` IPC channel.
+   */
+  onState(fn: (state: UpdateState) => void): () => void {
+    this.listeners.add(fn);
+    return () => this.listeners.delete(fn);
   }
 
   private async check(): Promise<void> {
@@ -135,11 +141,11 @@ export class AgentUpdateService {
 
   private configure(): void {
     autoUpdater.autoDownload = true;
-    // We override default `quitAndInstall` behavior via
-    // `tryInstallIfLocked`. Keep `autoInstallOnAppQuit = true` as a
-    // safety net: if the kiosk PC happens to be restarted (power
-    // cycle, scheduled reboot) between download and install, the new
-    // version comes up on next start without our intervention.
+    // Install timing is now operator-driven via the renderer modal,
+    // but keep `autoInstallOnAppQuit = true` as a safety net: if the
+    // kiosk PC is restarted (power cycle, scheduled reboot) between
+    // download and the operator clicking "Restart", the new version
+    // installs on next start without intervention.
     autoUpdater.autoInstallOnAppQuit = true;
     autoUpdater.logger = log;
     log.transports.file.level = "info";
@@ -164,10 +170,9 @@ export class AgentUpdateService {
     });
     autoUpdater.on("update-downloaded", (info: UpdateInfo) => {
       this.update({ status: "downloaded", availableVersion: info.version, progressPercent: 100 });
-      // Try the install gate right away — if the kiosk is already
-      // locked at download time we install immediately; otherwise the
-      // state transitions to `deferred` and waits for the lock event.
-      this.tryInstallIfLocked();
+      // No auto-install. The renderer modal shows up on the next
+      // lock screen render (window is invisible during gameplay
+      // anyway) and the operator clicks Restart to apply.
     });
     autoUpdater.on("error", (err: Error) => this.handleError(err));
   }
@@ -175,6 +180,9 @@ export class AgentUpdateService {
   private update(patch: Partial<UpdateState>): void {
     this.state = { ...this.state, ...patch };
     log.info("[agent-updater] state →", this.state);
+    for (const fn of this.listeners) {
+      try { fn(this.state); } catch (e) { log.error("AgentUpdateService listener threw", e); }
+    }
   }
 
   private handleError(e: unknown): void {
@@ -183,3 +191,16 @@ export class AgentUpdateService {
     this.update({ status: "error", error: message });
   }
 }
+
+/**
+ * Broadcast the given state to every BrowserWindow's webContents.
+ * Kept outside the class so tests can wire a different transport
+ * without monkey-patching the service. Mirror of the panel helper.
+ */
+export const broadcastUpdateState = (state: UpdateState): void => {
+  for (const w of BrowserWindow.getAllWindows()) {
+    if (!w.isDestroyed()) {
+      w.webContents.send("updates:state", state);
+    }
+  }
+};
