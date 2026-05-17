@@ -23,6 +23,14 @@ app.commandLine.appendSwitch("log-level", "3");
 app.commandLine.appendSwitch("disable-logging");
 app.commandLine.appendSwitch("disable-features", "Autofill");
 
+// Cap Chromium's HTTP disk cache at 50 MB. The agent runs 24/7 on
+// kiosk gaming PCs and rarely restarts — without a hard cap the
+// userData dir would steadily accumulate hundreds of MB of HTTP +
+// shader cache over the months between updates, slowing the PC down.
+// Combined with the boot-time clear + hourly purge (below), the
+// kiosk PC stays at near-empty cache across its entire lifecycle.
+app.commandLine.appendSwitch("disk-cache-size", String(50 * 1024 * 1024));
+
 let mainWindow: BrowserWindow | null = null;
 let store: FileStore<AgentConfigJson> | null = null;
 let unlocked = false;
@@ -135,13 +143,31 @@ app.whenReady().then(async () => {
   // Auto-clear non-essential caches on each startup so the kiosk PC doesn't
   // accumulate junk (HTTP cache, shader cache, code cache) over months of
   // uptime. Config file (pairing token / branch / pc id) is preserved.
-  try {
-    await session.defaultSession.clearCache();
-    await session.defaultSession.clearStorageData({
-      storages: ["shadercache", "cachestorage"],
-    });
-    await session.defaultSession.clearCodeCaches({});
-  } catch { /* best-effort */ }
+  const purgeThrowawayCaches = async () => {
+    try {
+      await session.defaultSession.clearCache();
+      await session.defaultSession.clearStorageData({
+        storages: ["shadercache", "cachestorage"],
+      });
+      await session.defaultSession.clearCodeCaches({});
+    } catch { /* best-effort */ }
+  };
+  await purgeThrowawayCaches();
+
+  // Hourly housekeeping. Agent processes restart very rarely (only when
+  // the operator installs an update or reboots the gaming PC), so a
+  // startup-only clear isn't enough — gigabytes of shader/code cache
+  // would still creep in between restarts on a busy venue.
+  //
+  // Skipped while `unlocked` is true: the PC is in a paid session and
+  // we honour the same kiosk-respect contract the auto-installer does —
+  // no background I/O that could perceptibly slow the player's game.
+  // The next idle hour reclaims everything once they lock out.
+  const ONE_HOUR_MS = 60 * 60 * 1000;
+  setInterval(() => {
+    if (unlocked) return;
+    void purgeThrowawayCaches();
+  }, ONE_HOUR_MS);
 
   ipcMain.handle("agent:getConfig", async () => (await store?.load()) ?? null);
   ipcMain.handle("agent:saveConfig", async (_e: unknown, c: AgentConfigJson) => {
