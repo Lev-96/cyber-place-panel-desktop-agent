@@ -79,6 +79,32 @@ const fetchIdentity = async (
   };
 };
 
+/**
+ * Re-fetch the branch's PIN hash + identity from /agent/hello without
+ * touching the transport or session manager. Used by AgentApp's
+ * periodic refresh so a freshly-set/rotated PIN in the panel reaches
+ * already-running kiosks within a minute, instead of waiting for a
+ * full agent restart.
+ *
+ * Failures are non-fatal — the existing cached config keeps working;
+ * the next tick retries.
+ */
+export const refreshIdentity = async (
+  pairingToken: string,
+): Promise<AgentRuntimeConfig | null> => {
+  try {
+    const identity = await fetchIdentity(SERVER_URL, pairingToken);
+    return {
+      serverUrl: SERVER_URL,
+      pairingToken,
+      ...identity,
+    };
+  } catch (e) {
+    logger.warn("agent /hello refresh failed", e);
+    return null;
+  }
+};
+
 /** Call when a stored config exists. Resolves identity, wires transport + manager. */
 export const bootstrapAgent = async (stored: AgentStoredConfig): Promise<BootResult> => {
   await agentConfig.save(stored);

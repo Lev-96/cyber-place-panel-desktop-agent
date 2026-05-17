@@ -1,7 +1,7 @@
 import { AgentState } from "@/domain/AgentState";
 import { AgentRuntimeConfig, AgentStoredConfig } from "@/infrastructure/AgentBridge";
 import { agentConfig } from "@/infrastructure/AgentConfig";
-import { bootstrapAgent } from "@/services/AgentBootstrap";
+import { bootstrapAgent, refreshIdentity } from "@/services/AgentBootstrap";
 import { SessionManager } from "@/services/SessionManager";
 import { TransportStatus } from "@/transport/ITransport";
 import { useEffect, useState } from "react";
@@ -9,7 +9,6 @@ import ActiveScreen from "./ActiveScreen";
 import LockScreen from "./LockScreen";
 import OfflineScreen from "./OfflineScreen";
 import SetupScreen from "./SetupScreen";
-import UpdateReadyModal from "./UpdateReadyModal";
 
 const AgentApp = () => {
   // Stored = what's on disk (just the pairing token).
@@ -51,6 +50,21 @@ const AgentApp = () => {
       for (const d of detachers) d();
       manager?.stop();
     };
+  }, [stored]);
+
+  // Periodic /agent/hello refresh. Without this an already-running
+  // kiosk would never pick up a PIN set in the panel AFTER it booted —
+  // its cached unlock_pin_hash would stay null forever. 60s is the
+  // tradeoff between "PIN rotation propagates fast" and "we don't
+  // hammer the backend with HTTP calls per kiosk per minute".
+  useEffect(() => {
+    if (!stored) return;
+    const id = setInterval(() => {
+      void refreshIdentity(stored.pairingToken).then((fresh) => {
+        if (fresh) setRuntime(fresh);
+      });
+    }, 60_000);
+    return () => clearInterval(id);
   }, [stored]);
 
   const screen = (() => {

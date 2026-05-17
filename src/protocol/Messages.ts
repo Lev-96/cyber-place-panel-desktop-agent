@@ -12,6 +12,19 @@ export type ServerCommandKind =
   | "agent.unlock"
   | "agent.reboot"
   | "agent.shutdown"
+  /**
+   * Backend enqueues this when an admin / owner / manager promotes a
+   * new agent release via the panel. The agent runs an
+   * electron-updater check on receipt; autoDownload=true means the
+   * binary downloads in the background, and the existing
+   * UpdateReadyModal surfaces on the next lock screen render so the
+   * cashier can click Restart.
+   *
+   * No payload is needed — electron-updater always pulls "the latest"
+   * regardless of which version triggered the command. Including the
+   * version in the payload is informational only (we log it).
+   */
+  | "agent.check-updates"
   | "ping";
 
 export type AgentEventKind =

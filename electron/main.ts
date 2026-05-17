@@ -200,9 +200,13 @@ app.whenReady().then(async () => {
   // is in the DOM but invisible until the next lock-screen render.
   updateService = new AgentUpdateService();
   updateService.onState(broadcastUpdateState);
-  ipcMain.handle("updates:check", () => {
+  // Renderer-side caller is the AgentCommand router — when the panel
+  // dispatches `agent.check-updates`, the SessionManager forwards it
+  // here. We actually run a check (electron-updater downloads on hit
+  // because autoDownload=true) instead of just returning current state.
+  ipcMain.handle("updates:check", async () => {
     if (!updateService) return null;
-    return updateService.getState();
+    return await updateService.checkNow();
   });
   ipcMain.handle("updates:install", () => {
     updateService?.installAndRestart();

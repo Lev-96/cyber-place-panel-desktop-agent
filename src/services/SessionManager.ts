@@ -86,6 +86,19 @@ export class SessionManager {
       case "agent.lock": return this.forceLock();
       case "agent.unlock": return this.allowUnlock();
       case "agent.shutdown": return void agentBridge?.shutdown();
+      // Operator-driven update trigger. The agent no longer polls
+      // GitHub on its own — this command is the only path that kicks
+      // off an update download on a kiosk. See ReleaseService::
+      // enqueueAgentCheckCommands on the backend.
+      case "agent.check-updates": {
+        logger.info("agent.check-updates received", cmd.payload);
+        if (typeof window !== "undefined" && window.cyberplaceUpdates) {
+          void window.cyberplaceUpdates.check().catch((e) => {
+            logger.warn("update check failed", e);
+          });
+        }
+        return;
+      }
       case "ping": return this.sendPong(cmd.id);
       default: logger.warn("unknown command", cmd.kind);
     }

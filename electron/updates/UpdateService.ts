@@ -74,30 +74,47 @@ export class AgentUpdateService {
   }
 
   /**
-   * Wire boot + periodic checks. Called once from `app.whenReady`.
-   * No-op in dev (no published artifacts to fetch).
+   * No-op kept for source-compat with main.ts call sites. The agent
+   * does NOT poll GitHub on its own anymore — that pattern produced
+   * the surprising UX where the "restart" modal appeared on the
+   * kiosk for a release no operator had opted into yet.
+   *
+   * Trigger model now: panel-side promote (admin or owner/manager)
+   * enqueues an `agent.check-updates` AgentCommand for every Pc; the
+   * agent's existing 2s REST poll picks it up and routes it to
+   * {@link checkNow()}. The download → modal → restart flow proceeds
+   * from there as before.
    */
   startPolling(): void {
     if (!app.isPackaged) {
       log.info("[agent-updater] dev mode — auto-update disabled");
       return;
     }
-    setTimeout(() => { void this.check(); }, AgentUpdateService.BOOT_CHECK_DELAY_MS);
-    this.pollHandle = setInterval(
-      () => { void this.check(); },
-      AgentUpdateService.POLL_INTERVAL_MS,
-    );
+    log.info("[agent-updater] running in command-driven mode (no autonomous polling)");
   }
 
   /**
-   * Stop the periodic poll. Used on app quit so the timer doesn't
-   * keep an unreffed handle alive during shutdown.
+   * No-op companion to startPolling — left in place so main.ts's
+   * shutdown sequence doesn't have to special-case the absence of
+   * a timer. Will be cleaned up alongside any future refactor that
+   * stops calling startPolling/stopPolling pairs unconditionally.
    */
   stopPolling(): void {
     if (this.pollHandle) {
       clearInterval(this.pollHandle);
       this.pollHandle = null;
     }
+  }
+
+  /**
+   * Explicitly run a check + (electron-updater handles download since
+   * autoDownload=true). Called from the IPC bridge when the renderer
+   * forwards an `agent.check-updates` ServerCommand. The boot path no
+   * longer calls this — only the panel can trigger it.
+   */
+  async checkNow(): Promise<UpdateState> {
+    await this.check();
+    return this.getState();
   }
 
   /**

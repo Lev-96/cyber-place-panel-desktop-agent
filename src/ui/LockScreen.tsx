@@ -1,7 +1,7 @@
 import { agentBridge, AgentRuntimeConfig } from "@/infrastructure/AgentBridge";
 import { TransportStatus } from "@/transport/ITransport";
 import bcrypt from "bcryptjs";
-import { useEffect, useRef, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import BrandMark from "./BrandMark";
 import StatusPill from "./StatusPill";
 
@@ -11,19 +11,20 @@ interface Props {
 }
 
 /**
- * Lock screen the player sees between sessions. Renders the PC label
- * + a numeric keypad. The keypad doubles as the emergency-unlock PIN
- * pad: if the operator types digits and the entered value matches the
- * branch's bcrypt-hashed PIN (shipped to us via /agent/hello), we
- * call `agentBridge.unlock()` to bypass the panel-driven flow.
+ * Lock screen between paid sessions. Numeric keypad doubles as the
+ * emergency-unlock PIN pad: digits typed into the input are bcrypt-
+ * compared against the branch's PIN hash (shipped via /agent/hello,
+ * refreshed every 60s by AgentApp). Match → agentBridge.unlock() lifts
+ * the kiosk overlay locally; no backend round-trip required, which is
+ * the entire point of the feature ("network is down and we still need
+ * to rescue this PC").
  *
- * Why local (offline-capable) verification:
- *   - Network/panel may be exactly what's broken; the whole point of
- *     "emergency unlock" is to keep working without them.
- *   - Hash is bcrypt, so a disk image alone doesn't trivially recover
- *     the PIN. Brute-forcing 4-6 digits against bcrypt is slow enough
- *     that the cashier would notice 1000+ failed presses, and we add
- *     rate-limiting on top.
+ * "Подтвердить" is the single primary action. The button is always
+ * rendered (so the cashier never wonders where the submit affordance
+ * lives); it's disabled when no digits are entered, when a request
+ * is in flight, when the pad is rate-limited, OR when the agent
+ * hasn't yet received a PIN hash — and shows a clear status message
+ * in each of those cases.
  *
  * Rate limit: 5 failed attempts within 60s freezes the pad for 60s.
  * Successful PIN clears the counter immediately.
@@ -69,11 +70,16 @@ const LockScreen = ({ config, status }: Props) => {
     setCode("");
   };
 
-  const submit = async () => {
-    if (padDisabled || !hasPin) return;
+  const submit = async (e?: FormEvent) => {
+    e?.preventDefault();
+    if (padDisabled) return;
+    if (!hasPin) {
+      setError("PIN ещё не настроен. Попросите менеджера установить его в панели.");
+      return;
+    }
     const candidate = code.trim();
     if (candidate.length < 4) {
-      setError("PIN слишком короткий");
+      setError("Введите 4–6 цифр");
       return;
     }
     setBusy(true);
@@ -125,21 +131,27 @@ const LockScreen = ({ config, status }: Props) => {
     ? Math.max(0, Math.ceil((lockedOutUntil - Date.now()) / 1000))
     : 0;
 
+  const submitDisabled = padDisabled || code.length < 4 || !hasPin;
+
   return (
     <div className="full">
       <StatusPill status={status} />
       <BrandMark />
-      <div className="card">
+      <form className="card" onSubmit={submit}>
         <h1>{config.pcLabel}</h1>
         <p className="hint">Попросите кассира начать сессию для этого ПК.</p>
         <input
           className="input"
           value={code}
           placeholder={hasPin ? "PIN экстренного разблокирования" : "Код или PIN (необязательно)"}
-          onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 8))}
+          onChange={(e) => {
+            setError(null);
+            setCode(e.target.value.replace(/\D/g, "").slice(0, 8));
+          }}
           inputMode="numeric"
           disabled={padDisabled}
           type="password"
+          autoComplete="off"
         />
         <div className="kbd">
           {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((k) => (
@@ -149,24 +161,23 @@ const LockScreen = ({ config, status }: Props) => {
           <button type="button" onClick={() => press("0")} disabled={padDisabled}>0</button>
           <button type="button" className="del" onClick={del} disabled={padDisabled}>⌫</button>
         </div>
-        {hasPin && (
-          <button
-            type="button"
-            className="btn"
-            onClick={() => void submit()}
-            disabled={padDisabled || code.length < 4}
-            style={{ marginTop: 8 }}
-          >
-            {busy ? "Проверка…" : "Экстренный разблок"}
-          </button>
-        )}
+        <button
+          type="submit"
+          className="btn"
+          disabled={submitDisabled}
+          style={{ marginTop: 12, width: "100%", fontSize: 16, padding: "12px 16px" }}
+        >
+          {busy ? "Проверка…" : "Подтвердить"}
+        </button>
         {isLockedOut && (
-          <div className="muted" style={{ marginTop: 8 }}>
+          <div className="muted" style={{ marginTop: 8, textAlign: "center" }}>
             Подождите ещё {lockoutSeconds} сек.
           </div>
         )}
-        {error && !isLockedOut && <div className="error" style={{ marginTop: 6 }}>{error}</div>}
-      </div>
+        {error && !isLockedOut && (
+          <div className="error" style={{ marginTop: 8, textAlign: "center" }}>{error}</div>
+        )}
+      </form>
     </div>
   );
 };
