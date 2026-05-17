@@ -1,6 +1,6 @@
 import { AgentState } from "@/domain/AgentState";
 import { Session } from "@/domain/Session";
-import { agentBridge, AgentConfigJson } from "@/infrastructure/AgentBridge";
+import { agentBridge, AgentRuntimeConfig } from "@/infrastructure/AgentBridge";
 import { logger } from "@/infrastructure/Logger";
 import { TypedEventEmitter } from "@/infrastructure/TypedEventEmitter";
 import {
@@ -39,7 +39,7 @@ export class SessionManager {
 
   constructor(
     private transport: ITransport,
-    private config: AgentConfigJson,
+    private config: AgentRuntimeConfig,
     private machineId: string,
     private agentVersion: string,
   ) {}

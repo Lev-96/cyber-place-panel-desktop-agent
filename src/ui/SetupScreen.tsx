@@ -1,45 +1,47 @@
-import { AgentConfigJson } from "@/infrastructure/AgentBridge";
+import { AgentStoredConfig } from "@/infrastructure/AgentBridge";
 import { FormEvent, useState } from "react";
 import BrandMark from "./BrandMark";
 
 interface Props {
-  initial?: AgentConfigJson | null;
-  onSubmit: (c: AgentConfigJson) => void;
+  initial?: AgentStoredConfig | null;
+  onSubmit: (c: AgentStoredConfig) => void;
 }
 
+/**
+ * First-time pairing screen. One input — the pairing token issued by
+ * the panel for this physical PC. Everything else (which server,
+ * which branch, which PC, the PC label) is either compile-time
+ * (server URL) or resolved by the agent itself via `/agent/hello`
+ * once the token is known, so the cashier doesn't have to know or
+ * type any numeric IDs.
+ */
 const SetupScreen = ({ initial, onSubmit }: Props) => {
-  const [serverUrl, setServerUrl] = useState(initial?.serverUrl ?? import.meta.env.VITE_BACKEND_URL ?? "https://cyber-place-server-staging-production.up.railway.app");
-  const [branchId, setBranchId] = useState(String(initial?.branchId ?? ""));
-  const [pcId, setPcId] = useState(String(initial?.pcId ?? ""));
-  const [pcLabel, setPcLabel] = useState(initial?.pcLabel ?? "");
   const [pairingToken, setPairingToken] = useState(initial?.pairingToken ?? "");
   const [err, setErr] = useState<string | null>(null);
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    const branch = Number(branchId);
-    const pc = Number(pcId);
-    if (!serverUrl) return setErr("Server URL is required");
-    if (!Number.isFinite(branch) || branch <= 0) return setErr("Invalid branch id");
-    if (!Number.isFinite(pc) || pc <= 0) return setErr("Invalid PC id");
-    if (!pcLabel) return setErr("PC label is required");
+    const token = pairingToken.trim();
+    if (token.length === 0) return setErr("Введите токен подключения");
     setErr(null);
-    onSubmit({ serverUrl, branchId: branch, pcId: pc, pcLabel, pairingToken: pairingToken || undefined });
+    onSubmit({ pairingToken: token });
   };
 
   return (
     <div className="full full-setup">
       <BrandMark text="CYBER PLACE · CLIENT" />
       <form className="card" onSubmit={submit}>
-        <h1>First-time setup</h1>
-        <p className="hint">Configure this PC. Get the branch ID, PC ID and pairing token from the cashier panel.</p>
-        <input className="input" placeholder="Server URL" value={serverUrl} onChange={(e) => setServerUrl(e.target.value)} />
-        <input className="input" placeholder="Branch ID" value={branchId} inputMode="numeric" onChange={(e) => setBranchId(e.target.value)} />
-        <input className="input" placeholder="PC ID" value={pcId} inputMode="numeric" onChange={(e) => setPcId(e.target.value)} />
-        <input className="input" placeholder="PC label (e.g. PC #5)" value={pcLabel} onChange={(e) => setPcLabel(e.target.value)} />
-        <input className="input" placeholder="Pairing token (optional)" value={pairingToken} onChange={(e) => setPairingToken(e.target.value)} />
+        <h1>Подключение</h1>
+        <p className="hint">Получите токен подключения у кассира в панели и вставьте его сюда.</p>
+        <input
+          className="input"
+          placeholder="Токен подключения"
+          value={pairingToken}
+          onChange={(e) => setPairingToken(e.target.value)}
+          autoFocus
+        />
         {err && <div className="error">{err}</div>}
-        <button className="btn" type="submit">Save and start</button>
+        <button className="btn" type="submit">Подключить</button>
       </form>
     </div>
   );

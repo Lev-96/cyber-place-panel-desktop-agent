@@ -1,7 +1,7 @@
-import { AgentConfigJson } from "@/infrastructure/AgentBridge";
+import { AgentRuntimeConfig } from "@/infrastructure/AgentBridge";
 import BrandMark from "./BrandMark";
 
-const OfflineScreen = ({ config }: { config: AgentConfigJson }) => (
+const OfflineScreen = ({ config }: { config: AgentRuntimeConfig }) => (
   <div className="full">
     <BrandMark />
     <div className="card" style={{ alignItems: "center", textAlign: "center" }}>

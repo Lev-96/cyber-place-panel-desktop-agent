@@ -1,10 +1,10 @@
-import { AgentConfigJson } from "@/infrastructure/AgentBridge";
+import { AgentRuntimeConfig } from "@/infrastructure/AgentBridge";
 import { TransportStatus } from "@/transport/ITransport";
 import BrandMark from "./BrandMark";
 import StatusPill from "./StatusPill";
 
 interface Props {
-  config: AgentConfigJson;
+  config: AgentRuntimeConfig;
   status: TransportStatus;
   /**
    * Milliseconds left on a fixed-tariff session, or `null` for

@@ -1,6 +1,6 @@
 {
   "name": "cyber-place-client-agent",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "private": true,
   "main": "electron/dist/main.js",
   "description": "Cyber Place kiosk agent — runs on each gaming PC, locks the workstation when no session is active, and unlocks when the cashier starts one.",
@@ -23,12 +23,14 @@
     "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p electron/tsconfig.json --noEmit"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "electron-log": "^5.4.4",
     "electron-updater": "^6.8.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^3.0.0",
     "@types/node": "^20.12.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

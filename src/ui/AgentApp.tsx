@@ -1,5 +1,5 @@
 import { AgentState } from "@/domain/AgentState";
-import { AgentConfigJson } from "@/infrastructure/AgentBridge";
+import { AgentRuntimeConfig, AgentStoredConfig } from "@/infrastructure/AgentBridge";
 import { agentConfig } from "@/infrastructure/AgentConfig";
 import { bootstrapAgent } from "@/services/AgentBootstrap";
 import { SessionManager } from "@/services/SessionManager";
@@ -12,7 +12,10 @@ import SetupScreen from "./SetupScreen";
 import UpdateReadyModal from "./UpdateReadyModal";
 
 const AgentApp = () => {
-  const [config, setConfig] = useState<AgentConfigJson | null>(null);
+  // Stored = what's on disk (just the pairing token).
+  // Runtime = identity (branch/PC/PIN hash) resolved via /agent/hello on boot.
+  const [stored, setStored] = useState<AgentStoredConfig | null>(null);
+  const [runtime, setRuntime] = useState<AgentRuntimeConfig | null>(null);
   const [state, setState] = useState<AgentState>({ kind: "boot" });
   const [status, setStatus] = useState<TransportStatus>("disconnected");
   // null = open-mode session with no countdown; 0 = no session at all;
@@ -22,18 +25,19 @@ const AgentApp = () => {
   useEffect(() => {
     void agentConfig.load().then((c) => {
       if (!c) { setState({ kind: "setup" }); return; }
-      setConfig(c);
+      setStored(c);
     });
   }, []);
 
   useEffect(() => {
-    if (!config) return;
+    if (!stored) return;
     let manager: SessionManager | null = null;
     let detachers: Array<() => void> = [];
 
     void (async () => {
-      const boot = await bootstrapAgent(config);
+      const boot = await bootstrapAgent(stored);
       manager = boot.manager;
+      setRuntime(boot.config);
       detachers.push(manager.on("state", setState));
       detachers.push(manager.on("remaining", setRemaining));
       // Local mirror of transport status — manager re-emits via state but we
@@ -47,18 +51,18 @@ const AgentApp = () => {
       for (const d of detachers) d();
       manager?.stop();
     };
-  }, [config]);
+  }, [stored]);
 
   const screen = (() => {
-    if (state.kind === "setup" || (!config && state.kind === "boot")) {
-      return <SetupScreen onSubmit={(c) => { setConfig(c); setState({ kind: "connecting" }); }} initial={config} />;
+    if (state.kind === "setup" || (!stored && state.kind === "boot")) {
+      return <SetupScreen onSubmit={(c) => { setStored(c); setState({ kind: "connecting" }); }} initial={stored} />;
     }
-    if (!config) return <div className="full"><div className="muted">Starting…</div></div>;
+    if (!runtime) return <div className="full"><div className="muted">Starting…</div></div>;
 
     if (state.kind === "active" || state.kind === "expiring") {
       return (
         <ActiveScreen
-          config={config}
+          config={runtime}
           status={status}
           remainingMs={remaining}
           userDisplayName={state.kind === "active" ? state.userDisplayName : undefined}
@@ -66,8 +70,8 @@ const AgentApp = () => {
         />
       );
     }
-    if (state.kind === "offline") return <OfflineScreen config={config} />;
-    return <LockScreen config={config} status={status} />;
+    if (state.kind === "offline") return <OfflineScreen config={runtime} />;
+    return <LockScreen config={runtime} status={status} />;
   })();
 
   // Modal mounted as a sibling so it overlays whichever screen is

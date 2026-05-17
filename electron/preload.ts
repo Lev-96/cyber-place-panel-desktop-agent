@@ -1,16 +1,14 @@
 import { contextBridge, ipcRenderer } from "electron";
 
-interface AgentConfigJson {
-  serverUrl: string;
-  branchId: number;
-  pcId: number;
-  pcLabel: string;
-  pairingToken?: string;
+// On-disk shape — only the pairing token. Identity (branch/PC/label) is
+// resolved by the renderer at boot via /agent/hello, not persisted here.
+interface AgentStoredConfig {
+  pairingToken: string;
 }
 
 contextBridge.exposeInMainWorld("agentAPI", {
-  getConfig: (): Promise<AgentConfigJson | null> => ipcRenderer.invoke("agent:getConfig"),
-  saveConfig: (c: AgentConfigJson): Promise<void> => ipcRenderer.invoke("agent:saveConfig", c),
+  getConfig: (): Promise<AgentStoredConfig | null> => ipcRenderer.invoke("agent:getConfig"),
+  saveConfig: (c: AgentStoredConfig): Promise<void> => ipcRenderer.invoke("agent:saveConfig", c),
   lock: (): Promise<void> => ipcRenderer.invoke("agent:lock"),
   unlock: (): Promise<void> => ipcRenderer.invoke("agent:unlock"),
   shutdown: (): Promise<void> => ipcRenderer.invoke("agent:shutdown"),

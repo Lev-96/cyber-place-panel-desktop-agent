@@ -24,8 +24,8 @@ export interface AgentUpdateState {
 declare global {
   interface Window {
     agentAPI?: {
-      getConfig(): Promise<AgentConfigJson | null>;
-      saveConfig(c: AgentConfigJson): Promise<void>;
+      getConfig(): Promise<AgentStoredConfig | null>;
+      saveConfig(c: AgentStoredConfig): Promise<void>;
 
       lock(): Promise<void>;
       unlock(): Promise<void>;
@@ -48,12 +48,39 @@ declare global {
   }
 }
 
-export interface AgentConfigJson {
+/**
+ * On-disk persisted config. Intentionally narrow — every other identity
+ * field (branch_id, pc_id, label, server URL) is either compile-time
+ * (server URL) or resolved at boot from `/agent/hello`. Keeps the setup
+ * UI to one field and the kiosk operator from having to know
+ * implementation details like numeric IDs.
+ *
+ * Legacy installations may have additional fields on disk; the bridge
+ * tolerates the extras when reading but never writes them back.
+ */
+export interface AgentStoredConfig {
+  pairingToken: string;
+}
+
+/**
+ * Full runtime config consumed by SessionManager, transport, lock screen,
+ * etc. Built once at boot from {@link AgentStoredConfig} + the response
+ * of `/agent/hello`. Never written to disk in this shape — that's what
+ * {@link AgentStoredConfig} is for.
+ *
+ * `unlockPinHash` is the bcrypt hash of the branch's emergency unlock
+ * PIN (null when the branch hasn't set one). Verified locally on the
+ * lock screen so the cashier can rescue a stuck PC even if the network
+ * to the panel/server is down.
+ */
+export interface AgentRuntimeConfig {
   serverUrl: string;
+  pairingToken: string;
   branchId: number;
   pcId: number;
   pcLabel: string;
-  pairingToken?: string;
+  unlockPinHash: string | null;
+  unlockPinUpdatedAt: string | null;
 }
 
 export const agentBridge = (() => {

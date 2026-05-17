@@ -6,12 +6,12 @@ import { FileStore } from "./storage";
 import { AgentUpdateService, broadcastUpdateState } from "./updates/UpdateService";
 import { bundledIconPath, ensureLinuxDesktopIntegration } from "./linuxIntegration";
 
-interface AgentConfigJson {
-  serverUrl: string;
-  branchId: number;
-  pcId: number;
-  pcLabel: string;
-  pairingToken?: string;
+// On-disk shape — only the pairing token. Everything else (server URL,
+// branch/PC ID, PC label, emergency PIN hash) is either compile-time
+// or resolved at boot via /agent/hello. Renderer never sees the
+// numeric IDs in setup; the cashier just pastes one token.
+interface AgentStoredConfig {
+  pairingToken: string;
 }
 
 const DEV_URL = process.env.ELECTRON_DEV_URL ?? "";
@@ -32,7 +32,7 @@ app.commandLine.appendSwitch("disable-features", "Autofill");
 app.commandLine.appendSwitch("disk-cache-size", String(50 * 1024 * 1024));
 
 let mainWindow: BrowserWindow | null = null;
-let store: FileStore<AgentConfigJson> | null = null;
+let store: FileStore<AgentStoredConfig> | null = null;
 let unlocked = false;
 let updateService: AgentUpdateService | null = null;
 
@@ -126,7 +126,7 @@ const createWindow = async () => {
 };
 
 app.whenReady().then(async () => {
-  store = new FileStore<AgentConfigJson>(join(app.getPath("userData"), "agent.config.json"));
+  store = new FileStore<AgentStoredConfig>(join(app.getPath("userData"), "agent.config.json"));
   await store.load();
 
   // Linux .desktop integration — same idea as the panel: an AppImage
@@ -170,8 +170,13 @@ app.whenReady().then(async () => {
   }, ONE_HOUR_MS);
 
   ipcMain.handle("agent:getConfig", async () => (await store?.load()) ?? null);
-  ipcMain.handle("agent:saveConfig", async (_e: unknown, c: AgentConfigJson) => {
-    await store?.save(c);
+  ipcMain.handle("agent:saveConfig", async (_e: unknown, c: AgentStoredConfig) => {
+    // Strip anything other than the pairing token. Legacy configs on
+    // disk (with branchId/pcId/serverUrl/pcLabel) get naturally
+    // migrated to the narrow shape on the first save call from the
+    // new SetupScreen.
+    const narrow: AgentStoredConfig = { pairingToken: c.pairingToken };
+    await store?.save(narrow);
     setAutoLaunch(true);
   });
 

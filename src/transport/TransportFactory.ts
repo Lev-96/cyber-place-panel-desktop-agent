@@ -1,4 +1,4 @@
-import { AgentConfigJson } from "@/infrastructure/AgentBridge";
+import { AgentRuntimeConfig } from "@/infrastructure/AgentBridge";
 import { ITransport } from "./ITransport";
 import { MockTransport } from "./MockTransport";
 import { RestPollingTransport } from "./RestPollingTransport";
@@ -13,7 +13,7 @@ const isMockMode = (): boolean => {
  * WebSocket server is running on Laravel. To switch to real WebSocket later,
  * import WebSocketTransport here and select it based on server capabilities.
  */
-export const createTransport = (config: AgentConfigJson): ITransport => {
+export const createTransport = (config: AgentRuntimeConfig): ITransport => {
   if (isMockMode() || !config.pairingToken) return new MockTransport();
   return new RestPollingTransport({
     baseUrl: config.serverUrl.replace(/\/$/, ""),
