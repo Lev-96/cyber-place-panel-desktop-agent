@@ -1,6 +1,6 @@
 {
   "name": "cyber-place-client-agent",
-  "version": "1.0.13",
+  "version": "1.0.14",
   "private": true,
   "main": "electron/dist/main.js",
   "description": "Cyber Place kiosk agent — runs on each gaming PC, locks the workstation when no session is active, and unlocks when the cashier starts one.",

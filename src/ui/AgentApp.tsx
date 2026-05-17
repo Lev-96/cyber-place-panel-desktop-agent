@@ -9,6 +9,7 @@ import ActiveScreen from "./ActiveScreen";
 import LockScreen from "./LockScreen";
 import OfflineScreen from "./OfflineScreen";
 import SetupScreen from "./SetupScreen";
+import UpdateReadyModal from "./UpdateReadyModal";
 
 const AgentApp = () => {
   // Stored = what's on disk (just the pairing token).
