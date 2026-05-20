@@ -47,6 +47,46 @@ jobs:
         run: npm run build
 
       - name: Package and publish to GitHub Release
+        # WIN_CSC_LINK / WIN_CSC_KEY_PASSWORD are honored ONLY by the
+        # --win build of electron-builder; the Linux and macOS legs of the
+        # matrix see them in env but ignore them entirely. If the secrets
+        # are unset, electron-builder transparently produces an unsigned
+        # installer — same as before.
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WIN_CSC_LINK: ${{ secrets.CSC_LINK }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
         run: npx electron-builder ${{ matrix.builder_arg }} --publish always
+
+      # Hard gate: if CSC_LINK secret is configured, every .exe under
+      # release/ MUST carry a valid Authenticode signature whose subject
+      # contains "Cyber Place". Otherwise the job fails — no silent
+      # publish of unsigned installers. PowerShell's
+      # Get-AuthenticodeSignature handles self-signed certs (signtool
+      # verify /pa would fail chain-to-trusted-root and is wrong here).
+      # Step is skipped on Linux/macOS legs and when no secret is set.
+      - name: Verify Windows signatures
+        if: matrix.os == 'windows-latest' && env.WIN_CSC_LINK != ''
+        env:
+          WIN_CSC_LINK: ${{ secrets.CSC_LINK }}
+        shell: pwsh
+        run: |
+          $expected = 'Cyber Place'
+          $files = Get-ChildItem -Path release -Recurse -Include *.exe -ErrorAction Stop
+          if (-not $files) { throw "No .exe produced under release/" }
+          $fail = $false
+          foreach ($f in $files) {
+            $sig = Get-AuthenticodeSignature -FilePath $f.FullName
+            if (-not $sig.SignerCertificate) {
+              Write-Error "UNSIGNED: $($f.FullName)"
+              $fail = $true
+              continue
+            }
+            if ($sig.SignerCertificate.Subject -notmatch [regex]::Escape($expected)) {
+              Write-Error "WRONG SIGNER: $($f.FullName) -> $($sig.SignerCertificate.Subject)"
+              $fail = $true
+              continue
+            }
+            Write-Host "OK: $($f.Name)  signer=$($sig.SignerCertificate.Subject)  status=$($sig.Status)"
+          }
+          if ($fail) { throw "One or more .exe files were not signed correctly." }

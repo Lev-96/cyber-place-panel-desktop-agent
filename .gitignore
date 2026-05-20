@@ -7,3 +7,10 @@ release
 .DS_Store
 *.log
 .expo
+
+# Code-signing artefacts — see panel-desktop/scripts/generate-codesign-cert.sh.
+# The .pfx + private key MUST NOT enter git.
+codesign-out/
+*.pfx
+*.pfx.b64
+*.key

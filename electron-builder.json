@@ -18,6 +18,8 @@
     "publisherName": "Cyber Place",
     "legalTrademarks": "Cyber Place",
     "verifyUpdateCodeSignature": false,
+    "signingHashAlgorithms": ["sha256"],
+    "rfc3161TimeStampServer": "http://timestamp.digicert.com",
     "icon": "build/icon.ico"
   },
   "linux": {
