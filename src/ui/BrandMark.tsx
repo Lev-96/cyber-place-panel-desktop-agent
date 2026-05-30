@@ -12,10 +12,8 @@
  */
 interface Props {
   /**
-   * Override the wordmark text. Default 'CYBER PLACE' covers the
-   * three runtime screens; SetupScreen passes 'CYBER PLACE · CLIENT'
-   * to distinguish the first-time pairing surface from the
-   * normal kiosk fullscreen.
+   * Override the wordmark text. Defaults to 'CYBER PLACE' on every
+   * surface (Active / Lock / Offline / Setup).
    */
   text?: string;
 }

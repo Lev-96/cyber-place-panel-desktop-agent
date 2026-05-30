@@ -29,7 +29,7 @@ const SetupScreen = ({ initial, onSubmit }: Props) => {
 
   return (
     <div className="full full-setup">
-      <BrandMark text="CYBER PLACE · CLIENT" />
+      <BrandMark />
       <form className="card" onSubmit={submit}>
         <h1>Подключение</h1>
         <p className="hint">Получите токен подключения у кассира в панели и вставьте его сюда.</p>

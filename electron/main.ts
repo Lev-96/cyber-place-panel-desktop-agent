@@ -90,7 +90,7 @@ const createWindow = async () => {
     alwaysOnTop: KIOSK,
     autoHideMenuBar: true,
     backgroundColor: "#020514",
-    title: "Cyberplace Client",
+    title: "Cyberplace",
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -135,7 +135,7 @@ app.whenReady().then(async () => {
   // with its icon. No-op on Windows/macOS.
   ensureLinuxDesktopIntegration({
     appId: "cyberplace-client-agent",
-    displayName: "Cyberplace Client",
+    displayName: "Cyberplace",
     comment: "Cyber Place kiosk agent — gaming PC lock/unlock controller",
     iconSourcePath: bundledIconPath(),
   });

@@ -137,6 +137,29 @@ const LockScreen = ({ config, status }: Props) => {
     <div className="full">
       <StatusPill status={status} />
       <BrandMark />
+      <svg
+        className="lock-badge"
+        width="64"
+        height="64"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="url(#cp-lock-grad)"
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+      >
+        <defs>
+          <linearGradient id="cp-lock-grad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stopColor="#07ddf1" />
+            <stop offset="1" stopColor="#d152fa" />
+          </linearGradient>
+        </defs>
+        <rect x="4.5" y="10.5" width="15" height="10.5" rx="2.4" />
+        <path d="M8 10.5V7a4 4 0 0 1 8 0v3.5" />
+        <circle cx="12" cy="15.4" r="1.4" fill="url(#cp-lock-grad)" stroke="none" />
+        <path d="M12 16.8v2" />
+      </svg>
       <form className="card" onSubmit={submit}>
         <h1>{config.pcLabel}</h1>
         <p className="hint">Попросите кассира начать сессию для этого ПК.</p>
