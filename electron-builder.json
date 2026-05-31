@@ -26,6 +26,7 @@
     "target": [
       { "target": "AppImage", "arch": ["x64"] }
     ],
+    "artifactName": "Cyberplace-Client-${version}.${ext}",
     "category": "Utility",
     "icon": "build/icon.png"
   },
@@ -42,6 +43,7 @@
     "deleteAppDataOnUninstall": false,
     "displayLanguageSelector": false,
     "shortcutName": "Cyberplace Client",
+    "artifactName": "Cyberplace-Client-Setup-${version}.${ext}",
     "installerIcon": "build/icon.ico",
     "uninstallerIcon": "build/icon.ico",
     "createDesktopShortcut": "always",
