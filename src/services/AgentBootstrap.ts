@@ -35,9 +35,9 @@ interface HelloResponse {
  * emergency PIN hash from the server using the saved pairing token.
  *
  * Falls back to "no PIN" if the server is unreachable AND we have no
- * cached identity — that path will route the agent into OfflineScreen
- * via the SessionManager's transport status, so the cashier sees a
- * clear failure mode rather than a stuck "Starting…".
+ * cached identity — the SessionManager's transport status then flips to
+ * offline, and the lock screen shows the "no connection" indicator while
+ * still accepting a locally-cached PIN, rather than a stuck "Starting…".
  */
 const fetchIdentity = async (
   serverUrl: string,
@@ -115,9 +115,9 @@ export const bootstrapAgent = async (stored: AgentStoredConfig): Promise<BootRes
   } catch (e) {
     logger.warn("agent /hello failed during bootstrap; falling back to placeholder identity", e);
     // Placeholder identity so the rest of the pipeline mounts. Transport
-    // will surface "error" status, AgentApp will render OfflineScreen,
-    // and a retry of bootstrap on the next config change (or restart)
-    // will swap in real values.
+    // will surface "error" status, the lock screen shows the offline
+    // indicator, and a retry of bootstrap on the next config change (or
+    // restart) will swap in real values.
     identity = {
       branchId: 0,
       pcId: 0,

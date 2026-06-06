@@ -1,6 +1,7 @@
 import { agentBridge, AgentRuntimeConfig } from "@/infrastructure/AgentBridge";
+import { pinCache } from "@/infrastructure/PinCache";
+import { verifyPinOffline, verifyPinOnline } from "@/services/UnlockPinService";
 import { TransportStatus } from "@/transport/ITransport";
-import bcrypt from "bcryptjs";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import BrandMark from "./BrandMark";
 import StatusPill from "./StatusPill";
@@ -12,12 +13,14 @@ interface Props {
 
 /**
  * Lock screen between paid sessions. Numeric keypad doubles as the
- * emergency-unlock PIN pad: digits typed into the input are bcrypt-
- * compared against the branch's PIN hash (shipped via /agent/hello,
- * refreshed every 60s by AgentApp). Match → agentBridge.unlock() lifts
- * the kiosk overlay locally; no backend round-trip required, which is
- * the entire point of the feature ("network is down and we still need
- * to rescue this PC").
+ * emergency-unlock PIN pad. Verification has an online/offline split
+ * (see UnlockPinService):
+ *   - Online  → the server DB is the source of truth; we POST the
+ *     candidate to /agent/verify-pin and trust its boolean.
+ *   - Offline → bcrypt-compare against the hash cached in localStorage
+ *     the last time /agent/hello succeeded (PinCache), so a PC that
+ *     booted offline or lost its link mid-shift can still be rescued.
+ * Either way, a match → agentBridge.unlock() lifts the kiosk overlay.
  *
  * "Подтвердить" is the single primary action. The button is always
  * rendered (so the cashier never wonders where the submit affordance
@@ -52,7 +55,10 @@ const LockScreen = ({ config, status }: Props) => {
     return () => clearInterval(id);
   }, [lockedOutUntil]);
 
-  const hasPin = typeof config.unlockPinHash === "string" && config.unlockPinHash.length > 0;
+  // We "have a PIN" if the server shipped one this session OR we cached
+  // one locally on a previous online boot. Affects only the placeholder
+  // copy now — the button is no longer gated on it.
+  const hasPin = !!(config.unlockPinHash ?? pinCache.load());
   const isLockedOut = lockedOutUntil !== null && Date.now() < lockedOutUntil;
   const padDisabled = busy || isLockedOut;
 
@@ -75,10 +81,6 @@ const LockScreen = ({ config, status }: Props) => {
   const submit = async (e?: FormEvent) => {
     e?.preventDefault();
     if (padDisabled) return;
-    if (!hasPin) {
-      setError("PIN ещё не настроен. Попросите менеджера установить его в панели.");
-      return;
-    }
     const candidate = code.trim();
     if (candidate.length < 4) {
       setError("Введите 4–6 цифр");
@@ -86,7 +88,25 @@ const LockScreen = ({ config, status }: Props) => {
     }
     setBusy(true);
     try {
-      const ok = await bcrypt.compare(candidate, config.unlockPinHash as string);
+      // Online → the server DB is the source of truth. Offline (or if the
+      // online call dies mid-request) → bcrypt against the locally-cached
+      // hash. null = no network and nothing cached to verify against.
+      let ok: boolean | null;
+      if (status === "connected") {
+        try {
+          ok = await verifyPinOnline(config, candidate);
+        } catch {
+          ok = await verifyPinOffline(config, candidate);
+        }
+      } else {
+        ok = await verifyPinOffline(config, candidate);
+      }
+
+      if (ok === null) {
+        setError("Нет сети, а PIN ещё не сохранён на этом ПК. Подключите его к сети хотя бы раз.");
+        return;
+      }
+
       if (!ok) {
         // Slide-window rate limit: keep only timestamps within the
         // last minute; if 5+ have piled up, freeze the pad.
@@ -167,6 +187,11 @@ const LockScreen = ({ config, status }: Props) => {
       <form className="card" onSubmit={submit}>
         <h1>{config.pcLabel}</h1>
         <p className="hint">Попросите кассира начать сессию для этого ПК.</p>
+        {(status === "error" || status === "disconnected") && (
+          <p className="hint" style={{ color: "#f5a623" }}>
+            Нет связи с сервером — PIN проверяется локально.
+          </p>
+        )}
         <input
           className="input"
           value={code}

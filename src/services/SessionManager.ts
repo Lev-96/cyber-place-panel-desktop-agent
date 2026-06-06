@@ -13,7 +13,7 @@ import {
   SessionStopPayload,
   SessionUpdatePayload,
 } from "@/protocol/Messages";
-import { ITransport, newId } from "@/transport/ITransport";
+import { ITransport, newId, TransportStatus } from "@/transport/ITransport";
 
 interface Events {
   state: AgentState;
@@ -23,6 +23,12 @@ interface Events {
    * null to "Open session" instead of rendering a countdown.
    */
   remaining: number | null;
+  /**
+   * Live transport connectivity, re-emitted from the underlying
+   * transport so the UI can show the status pill and pick the
+   * online (server) vs offline (cached) PIN-verification path.
+   */
+  status: TransportStatus;
 }
 
 const HEARTBEAT_MS = 5_000;
@@ -48,6 +54,9 @@ export class SessionManager {
     this.setState({ kind: "connecting" });
 
     this.detachers.push(this.transport.onStatus((s) => {
+      // Surface raw connectivity to the UI (status pill + online/offline
+      // PIN path) regardless of what we do with the session state below.
+      this.emitter.emit("status", s);
       if (s === "connected") {
         this.sendHello();
         if (!this.session) this.setState({ kind: "locked" });

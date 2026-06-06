@@ -1,13 +1,13 @@
 import { AgentState } from "@/domain/AgentState";
 import { AgentRuntimeConfig, AgentStoredConfig } from "@/infrastructure/AgentBridge";
 import { agentConfig } from "@/infrastructure/AgentConfig";
+import { pinCache } from "@/infrastructure/PinCache";
 import { bootstrapAgent, refreshIdentity } from "@/services/AgentBootstrap";
 import { SessionManager } from "@/services/SessionManager";
 import { TransportStatus } from "@/transport/ITransport";
 import { useEffect, useState } from "react";
 import ActiveScreen from "./ActiveScreen";
 import LockScreen from "./LockScreen";
-import OfflineScreen from "./OfflineScreen";
 import SetupScreen from "./SetupScreen";
 import UpdateReadyModal from "./UpdateReadyModal";
 
@@ -38,13 +38,13 @@ const AgentApp = () => {
       const boot = await bootstrapAgent(stored);
       manager = boot.manager;
       setRuntime(boot.config);
+      // Stash the hash for offline rescue (no-op when null).
+      pinCache.save(boot.config.unlockPinHash);
       detachers.push(manager.on("state", setState));
       detachers.push(manager.on("remaining", setRemaining));
-      // Local mirror of transport status — manager re-emits via state but we
-      // still want a transport pill regardless of session state:
-      const initial = (manager as unknown as { transport?: { status(): TransportStatus; onStatus(h: (s: TransportStatus) => void): () => void } });
-      // Falls back to disconnected if internals aren't exposed (they aren't).
-      setStatus(initial?.transport?.status?.() ?? "connecting");
+      // Live transport connectivity, re-emitted by the manager. Drives the
+      // status pill and the LockScreen's online/offline PIN path.
+      detachers.push(manager.on("status", setStatus));
     })();
 
     return () => {
@@ -62,7 +62,11 @@ const AgentApp = () => {
     if (!stored) return;
     const id = setInterval(() => {
       void refreshIdentity(stored.pairingToken).then((fresh) => {
-        if (fresh) setRuntime(fresh);
+        if (fresh) {
+          setRuntime(fresh);
+          // Keep the offline-rescue cache current with rotations.
+          pinCache.save(fresh.unlockPinHash);
+        }
       });
     }, 60_000);
     return () => clearInterval(id);
@@ -85,7 +89,9 @@ const AgentApp = () => {
         />
       );
     }
-    if (state.kind === "offline") return <OfflineScreen config={runtime} />;
+    // "offline" and "locked" both render the lock screen so the emergency
+    // PIN pad stays reachable without network — the status pill shows the
+    // lost connection, and the PIN is verified against the local cache.
     return <LockScreen config={runtime} status={status} />;
   })();
 
