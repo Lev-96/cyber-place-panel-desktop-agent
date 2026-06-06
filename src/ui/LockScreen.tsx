@@ -21,10 +21,12 @@ interface Props {
  *
  * "Подтвердить" is the single primary action. The button is always
  * rendered (so the cashier never wonders where the submit affordance
- * lives); it's disabled when no digits are entered, when a request
- * is in flight, when the pad is rate-limited, OR when the agent
- * hasn't yet received a PIN hash — and shows a clear status message
- * in each of those cases.
+ * lives); it enables as soon as 4+ digits are entered and the pad is
+ * neither busy nor rate-limited. It is deliberately NOT gated on the
+ * presence of a PIN hash: a disabled button can't explain itself, so
+ * if the agent hasn't received a PIN yet, we let the cashier press it
+ * and surface the explicit "PIN ещё не настроен" message from submit()
+ * instead of leaving them staring at a dead control.
  *
  * Rate limit: 5 failed attempts within 60s freezes the pad for 60s.
  * Successful PIN clears the counter immediately.
@@ -131,7 +133,9 @@ const LockScreen = ({ config, status }: Props) => {
     ? Math.max(0, Math.ceil((lockedOutUntil - Date.now()) / 1000))
     : 0;
 
-  const submitDisabled = padDisabled || code.length < 4 || !hasPin;
+  // NOT gated on hasPin — see the component docblock. The submit()
+  // handler shows an explicit message when no PIN is configured yet.
+  const submitDisabled = padDisabled || code.length < 4;
 
   return (
     <div className="full">
