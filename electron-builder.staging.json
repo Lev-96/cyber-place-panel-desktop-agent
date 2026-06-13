@@ -1,0 +1,59 @@
+{
+  "appId": "com.cyberplace.clientagent",
+  "productName": "Cyberplace Client",
+  "copyright": "Copyright © 2026 Cyber Place. All rights reserved.",
+  "directories": { "output": "release", "buildResources": "build" },
+  "files": [
+    "electron/dist/**/*",
+    "dist/web/**/*",
+    "package.json"
+  ],
+  "extraResources": [
+    { "from": "build/icon.png", "to": "build/icon.png" }
+  ],
+  "extraMetadata": { "main": "electron/dist/main.js" },
+  "electronLanguages": ["en-US", "ru-RU"],
+  "win": {
+    "target": [{ "target": "nsis", "arch": ["x64"] }],
+    "publisherName": "Cyber Place",
+    "legalTrademarks": "Cyber Place",
+    "verifyUpdateCodeSignature": false,
+    "signingHashAlgorithms": ["sha256"],
+    "rfc3161TimeStampServer": "http://timestamp.digicert.com",
+    "icon": "build/icon.ico"
+  },
+  "linux": {
+    "target": [
+      { "target": "AppImage", "arch": ["x64"] }
+    ],
+    "artifactName": "Cyberplace-Client-${version}.${ext}",
+    "category": "Utility",
+    "icon": "build/icon.png"
+  },
+  "nsis": {
+    "oneClick": true,
+    "perMachine": true,
+    "runAfterFinish": true,
+    "differentialPackage": true,
+    "deleteAppDataOnUninstall": false,
+    "displayLanguageSelector": false,
+    "shortcutName": "Cyberplace Client",
+    "artifactName": "Cyberplace-Client-Setup-${version}.${ext}",
+    "installerIcon": "build/icon.ico",
+    "uninstallerIcon": "build/icon.ico",
+    "createDesktopShortcut": "always",
+    "createStartMenuShortcut": true,
+    "menuCategory": "Cyber Place"
+  },
+  "asar": true,
+  "electronUpdaterCompatibility": ">=2.16",
+  "publish": [
+    {
+      "provider": "github",
+      "owner": "Lev-96",
+      "repo": "cyber-place-panel-desktop-agent",
+      "releaseType": "prerelease",
+      "channel": "staging"
+    }
+  ]
+}

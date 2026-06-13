@@ -16,7 +16,7 @@ export interface BootResult {
  */
 const SERVER_URL =
   (import.meta.env.VITE_BACKEND_URL as string | undefined) ??
-  "https://cyber-place-server-staging-production.up.railway.app";
+  "https://cyber-place-server-production.up.railway.app";
 
 interface HelloResponse {
   pc?: {

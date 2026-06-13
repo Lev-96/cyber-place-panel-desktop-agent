@@ -14,9 +14,13 @@
   "scripts": {
     "dev": "vite",
     "build:web": "tsc -p tsconfig.app.json && vite build",
+    "build:web:staging": "tsc -p tsconfig.app.json && vite build --mode staging",
     "build:electron": "tsc -p electron/tsconfig.json",
     "build": "npm run build:web && npm run build:electron",
+    "build:staging": "npm run build:web:staging && npm run build:electron",
     "electron:dev": "ELECTRON_DEV_URL=http://localhost:5174 npm run build:electron && electron electron/dist/main.js",
+    "dist:linux:staging": "npm run build:staging && electron-builder --linux --config electron-builder.staging.json",
+    "dist:win:staging": "npm run build:staging && electron-builder --win --config electron-builder.staging.json",
     "dist:linux": "npm run build && electron-builder --linux",
     "dist:win": "npm run build && electron-builder --win",
     "dist:mac": "npm run build && electron-builder --mac",
