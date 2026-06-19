@@ -1,10 +1,15 @@
-name: Release Desktop Agent (production)
+name: Release Desktop Agent (staging)
+
+# Staging release track for the kiosk agent. Triggered by prerelease-style
+# tags like v1.0.23-staging.1. Builds against the staging backend
+# (Vite --mode staging) and publishes to the `staging` electron-updater
+# channel (staging*.yml), marked as a GitHub prerelease so the production
+# backend's /releases/latest never picks it up. See electron-builder.staging.json.
 
 on:
   push:
     tags:
-      - "v*"
-      - "!v*-staging*" # staging tags (v*-staging*) are handled by release-staging.yml
+      - "v*-staging*"
 
 permissions:
   contents: write
@@ -18,17 +23,25 @@ jobs:
         with:
           node-version: 20
       - run: npm ci
-      - run: npm run build
-      - name: Build Linux AppImage (no auto-publish)
-        run: npx electron-builder --linux --publish never
+      - name: Write .env.staging from repo variable
+        env:
+          ENV_STAGING: ${{ vars.ENV_STAGING }}
+        shell: bash
+        run: |
+          if [ -z "$ENV_STAGING" ]; then echo "::error::Repo variable ENV_STAGING is not set — add it under Settings → Secrets and variables → Actions → Variables"; exit 1; fi
+          printf '%s\n' "$ENV_STAGING" > .env.staging
+      - run: npm run build:staging
+      - name: Build Linux AppImage (staging channel, no auto-publish)
+        run: npx electron-builder --linux --config electron-builder.staging.json --publish never
       - name: Upload selected Linux assets to release
         uses: softprops/action-gh-release@v2
         with:
           draft: false
+          prerelease: true
           fail_on_unmatched_files: true
           files: |
             release/*.AppImage
-            release/latest-linux.yml
+            release/staging-linux.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -41,15 +54,19 @@ jobs:
         with:
           node-version: 20
       - run: npm ci
-      - run: npm run build
-      - name: Build Windows NSIS (no auto-publish)
+      - name: Write .env.staging from repo variable
+        env:
+          ENV_STAGING: ${{ vars.ENV_STAGING }}
+        shell: bash
+        run: |
+          if [ -z "$ENV_STAGING" ]; then echo "::error::Repo variable ENV_STAGING is not set — add it under Settings → Secrets and variables → Actions → Variables"; exit 1; fi
+          printf '%s\n' "$ENV_STAGING" > .env.staging
+      - run: npm run build:staging
+      - name: Build Windows NSIS (staging channel, no auto-publish)
         env:
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-        run: npx electron-builder --win --publish never
-      # Hard gate: if signing is configured, every .exe must carry a valid
-      # Cyber Place Authenticode signature or the job fails — no unsigned
-      # publish. Get-AuthenticodeSignature handles the self-signed cert.
+        run: npx electron-builder --win --config electron-builder.staging.json --publish never
       - name: Verify Windows signatures
         if: env.CSC_LINK != ''
         env:
@@ -75,9 +92,10 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           draft: false
+          prerelease: true
           fail_on_unmatched_files: true
           files: |
             release/*.exe
-            release/latest.yml
+            release/staging.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

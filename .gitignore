@@ -4,6 +4,11 @@ electron/dist
 release
 .env
 .env.local
+# Build-time env files are NOT tracked. The staging build's .env.staging is
+# written by CI from repo Variable vars.ENV_STAGING; production agent uses the
+# hardcoded prod fallback in AgentBootstrap.ts. Keep local copies untracked.
+.env.production
+.env.staging
 .DS_Store
 *.log
 .expo
