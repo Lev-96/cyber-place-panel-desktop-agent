@@ -23,6 +23,13 @@ jobs:
         with:
           node-version: 20
       - run: npm ci
+      - name: Write .env.staging from repo variable
+        env:
+          ENV_STAGING: ${{ vars.ENV_STAGING }}
+        shell: bash
+        run: |
+          if [ -z "$ENV_STAGING" ]; then echo "::error::Repo variable ENV_STAGING is not set — add it under Settings → Secrets and variables → Actions → Variables"; exit 1; fi
+          printf '%s\n' "$ENV_STAGING" > .env.staging
       - run: npm run build:staging
       - name: Build Linux AppImage (staging channel, no auto-publish)
         run: npx electron-builder --linux --config electron-builder.staging.json --publish never
@@ -47,6 +54,13 @@ jobs:
         with:
           node-version: 20
       - run: npm ci
+      - name: Write .env.staging from repo variable
+        env:
+          ENV_STAGING: ${{ vars.ENV_STAGING }}
+        shell: bash
+        run: |
+          if [ -z "$ENV_STAGING" ]; then echo "::error::Repo variable ENV_STAGING is not set — add it under Settings → Secrets and variables → Actions → Variables"; exit 1; fi
+          printf '%s\n' "$ENV_STAGING" > .env.staging
       - run: npm run build:staging
       - name: Build Windows NSIS (staging channel, no auto-publish)
         env:
