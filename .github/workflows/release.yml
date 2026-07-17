@@ -10,7 +10,29 @@ permissions:
   contents: write
 
 jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: package.json version must equal the git tag (production, non-staging)
+        shell: bash
+        run: |
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          echo "package.json=$PKG_VERSION  tag=$TAG_VERSION"
+          if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
+            echo "::error::package.json version ($PKG_VERSION) does not match tag ($TAG_VERSION). Bump package.json to match the tag before releasing."
+            exit 1
+          fi
+          case "$PKG_VERSION" in
+            *-staging*) echo "::error::Production release must not use a -staging version ($PKG_VERSION). Use release-staging.yml for staging."; exit 1 ;;
+          esac
+
   build-linux:
+    needs: guard
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
