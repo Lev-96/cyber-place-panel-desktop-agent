@@ -1,6 +1,6 @@
 {
-  "appId": "com.cyberplace.clientagent",
-  "productName": "Cyberplace Client",
+  "appId": "com.cyberplace.clientagent.staging",
+  "productName": "Cyberplace Client Staging",
   "copyright": "Copyright © 2026 Cyber Place. All rights reserved.",
   "directories": { "output": "release", "buildResources": "build" },
   "files": [
@@ -26,7 +26,7 @@
     "target": [
       { "target": "AppImage", "arch": ["x64"] }
     ],
-    "artifactName": "Cyberplace-Client-${version}.${ext}",
+    "artifactName": "Cyberplace-Client-Staging-${version}.${ext}",
     "category": "Utility",
     "icon": "build/icon.png"
   },
@@ -37,13 +37,13 @@
     "differentialPackage": true,
     "deleteAppDataOnUninstall": false,
     "displayLanguageSelector": false,
-    "shortcutName": "Cyberplace Client",
-    "artifactName": "Cyberplace-Client-Setup-${version}.${ext}",
+    "shortcutName": "Cyberplace Client Staging",
+    "artifactName": "Cyberplace-Client-Staging-Setup-${version}.${ext}",
     "installerIcon": "build/icon.ico",
     "uninstallerIcon": "build/icon.ico",
     "createDesktopShortcut": "always",
     "createStartMenuShortcut": true,
-    "menuCategory": "Cyber Place"
+    "menuCategory": "Cyber Place Staging"
   },
   "asar": true,
   "electronUpdaterCompatibility": ">=2.16",
