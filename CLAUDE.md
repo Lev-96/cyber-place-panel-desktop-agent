@@ -114,7 +114,15 @@ branch — so the two yml files never conflict:
   patching, small contracts, depend on abstractions.
 - **KISS + DRY.** Reuse the small primitive set (Button, Modal,
   ConfirmDialog).
+- **No hard-coded domain string literals.** Any closed set (command
+  `kind`, session state, connection status) is a TS `type` + `const` map
+  + helper predicates in one module — compare against those, never bare
+  `"active"` / `"locked"` scattered across files. Mirror the backend
+  `App\Enums\*` naming where the set crosses the wire.
 - **Production-ready only** — no `TODO: implement later` in shipped diffs.
+- **API Resources / Resource wire-shape are owned by the backend** — when
+  a backend contract the agent consumes changes, update the agent's type
+  in the SAME change so `tsc` catches drift.
 - **Never expose secrets** or log tokens / PIN values / pairing tokens.
 - **Communicate with the user in Russian** (casual tone). Code, commit
   messages, and PR descriptions stay in English.
@@ -193,9 +201,14 @@ When working on this project:
    on Windows / a paired PC / a real gaming-club LAN, say so.
 8. **Communicate with the user in Russian** (casual tone); code, commit
    messages, PR descriptions in English.
+9. **"100% guaranteed" means proven, not asserted.** The user demands
+   maximum rigor. Verify everything machine-verifiable and give an
+   **honest verified-vs-stage split** — never a bare "yes, 100%". Name
+   what could only be validated on a paired PC / real LAN and leave it
+   for the user to smoke-test rather than implying it was checked.
 
 ---
 
-_Last verified: 2026-05-28. When the agent's stack, OS integration, or
+_Last verified: 2026-07-18. When the agent's stack, OS integration, or
 pairing/WebSocket contract changes, update the relevant section here in
 the same change._
