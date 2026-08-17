@@ -74,16 +74,33 @@ branch — so the two yml files never conflict:
 - **Electron 33 + Vite 5.4 + React 19** · TypeScript strict mode
 - **No router** beyond a couple of screens (paired / unpaired / locked).
 - **No global state library** — local React state + a small IPC bridge.
-- **Auto-launch on boot:** Linux systemd (`linuxIntegration.ts`), Windows
-  `app.setLoginItemSettings`.
-- **Lock/unlock:** D-Bus on Linux, native Windows API.
+- **Auto-launch on boot:** `app.setLoginItemSettings` (`main.ts`) — which
+  Electron implements on **Windows and macOS only**. `linuxIntegration.ts`
+  writes a `.desktop` entry into `~/.local/share/applications`, i.e. a
+  **menu entry, not an autostart entry** (`~/.config/autostart`), and there is
+  no systemd unit anywhere in this repo. **On Linux the agent therefore does
+  not start on boot.** Verified 2026-08-17 — do not assume otherwise.
+- **Lock/unlock:** an Electron **window**, not an OS session lock. There is no
+  D-Bus code, no Windows lock API, and no native module in this repo (grep for
+  `child_process|exec|spawn|loginctl|dbus` returns nothing but a comment).
+  `hideLockOverlay` uses opacity-0 + click-through + offscreen. Consequence:
+  killing the process removes the lock, and nothing restarts it. Treat the
+  overlay as a UX affordance, not an access control.
 - **Bootstrap:** `/agent/hello` resolves server URL, PC ID, label, and
-  emergency PIN hash from a pairing token. **Only the pairing token is
-  persisted to disk.** Everything else is in-memory.
-- **Transport:** WebSocket to backend after pairing. IPC main↔renderer for
-  local commands (lock/unlock, machineId, version).
-- **Auto-update:** `electron-updater 6.8.3`, GitHub releases provider, plus
-  staged rollout coordinated by the backend (`app-updates` Reverb channel).
+  emergency PIN hash from a pairing token. The pairing token is persisted to
+  disk **in plaintext** (`storage.ts` → `agent.config.json`, no mode set), and
+  the branch's emergency-PIN **hash is also persisted**, in renderer
+  localStorage (`PinCache.ts`). The older claim that only the token touches
+  disk is wrong.
+- **Transport:** **REST polling every 2s** (`RestPollingTransport`).
+  `WebSocketTransport.ts` exists but `TransportFactory` never returns it —
+  it is dead code. There is no Reverb/Echo/Pusher dependency in
+  `package.json`. IPC main↔renderer for local commands.
+- **Auto-update:** `electron-updater 6.8.3`, GitHub releases provider.
+  Update checks arrive as an `agent.check-updates` **command over the REST
+  poll**, not over a Reverb channel — the agent subscribes to nothing.
+  `verifyUpdateCodeSignature` is currently `false`, so the Authenticode
+  signature CI produces is not checked at install time.
 - **Code-signing:** Windows installer signed with self-signed Cyber Place
   cert. SmartScreen still warns by design.
 - **Crypto on disk:** `bcryptjs` for emergency-PIN compare (hash comes
@@ -92,8 +109,21 @@ branch — so the two yml files never conflict:
 ### Kiosk hardening (NEVER LOOSEN in production builds)
 - F11 / F12 / Ctrl+R / context-menu / drag-and-drop disabled in prod.
 - Chromium cache capped at 50 MB with hourly purge + boot-time clear.
-- Custom `app://` protocol — no `file://` disclosure.
-- DevTools hidden behind `ELECTRON_DEVTOOLS=1` env var.
+- The renderer is loaded with `loadFile()`, i.e. over `file://`. There is no
+  custom `app://` protocol in this repo (unlike the staff panel, which does
+  register one). Earlier revisions of this doc claimed otherwise.
+- **DevTools follow the BUILD, not the environment.** `isDev = !app.isPackaged`
+  and `devTools: isDev`, so a packaged build never opens them. There is no
+  `ELECTRON_DEVTOOLS` variable in this repo — that claim was wrong.
+- **`ELECTRON_DEV_URL` is ignored in packaged builds** (`main.ts`). It used to
+  be honoured, which let anyone relaunch the installed binary with it set and
+  get a non-kiosk window, DevTools, and an attacker-controlled page **with the
+  preload attached** — i.e. `agentAPI.unlock()` and the pairing token. Never
+  let build-time posture be decided by a runtime environment variable: this
+  app runs on machines customers can physically touch.
+- `setWindowOpenHandler` denies outright — the kiosk has no legitimate
+  external-link case — and `will-navigate` blocks any top-level navigation
+  away from the bundled page, so the preload can never follow to a new origin.
 
 ### Electron security posture (NEVER LOOSEN)
 - `contextIsolation: true`
@@ -144,29 +174,37 @@ branch — so the two yml files never conflict:
 - **Confirm dialogs / number inputs:** use in-app `ConfirmDialog` and the
   `NumberStepper` text pattern; native `window.confirm()` and
   `<input type="number">` both poison renderer focus on Linux WMs.
-- **DevTools:** auto-detached DevTools poison focus too. Keep the
-  `ELECTRON_DEVTOOLS=1` gate.
+- **DevTools:** auto-detached DevTools poison focus too. They are gated on
+  `!app.isPackaged` — a build-time fact. Never gate them, or kiosk mode, on an
+  environment variable: the machine's environment is attacker-controlled.
 
 ---
 
 ## 5. Realtime — what the agent listens to
 
-The agent's realtime surface is **much smaller** than the staff panel.
-It subscribes to the auto-update channel only:
+**The agent has no realtime surface at all.** Verified 2026-08-17: it
+subscribes to zero channels and there is no Reverb/Echo/Pusher dependency in
+`package.json`. Earlier revisions of this file listed `app-updates` and
+`app-updates.{role=agent}` — that was never implemented here.
 
-| Channel | Visibility | Purpose |
-|---|---|---|
-| `app-updates` | public | promoted-version broadcasts (`app-update.promoted`) |
-| `app-updates.{role=agent}` | public | release-available for the agent role (`app-release.available`) |
+Everything reaches the agent by **polling `GET /agent/poll-commands` every
+2 seconds** (`RestPollingTransport`), including session start/stop, lock/unlock
+and `agent.check-updates`. `WebSocketTransport.ts` exists but
+`TransportFactory` never returns it; it is dead code awaiting either removal
+or wiring.
 
-Session start/stop and lock/unlock commands flow through the agent's
-**dedicated WebSocket** (post-pairing), not through Reverb. Do not
-subscribe the agent to `branch.{id}` or `company.{id}` — those are staff
+Do not subscribe the agent to `branch.{id}` or `company.{id}` — those are staff
 panel and mobile concerns.
 
-If the backend adds new agent commands, add them to the agent's WebSocket
-handler and the corresponding controller in the backend in the SAME
-change. Document the new command here.
+Known gap, do not mistake for working behaviour: `RestPollingTransport.send()`
+buffers heartbeats and **silently drops every other outbound event**, so
+`agent.hello`, `agent.session.ack` and `pong` never reach the backend. The
+consequence is that the server never receives `machineId`, and therefore cannot
+detect two agents paired with the same token.
+
+If the backend adds new agent commands, add them to `SessionManager`'s command
+switch and the corresponding controller in the backend in the SAME change, and
+document the new command here.
 
 ---
 
@@ -206,6 +244,43 @@ When working on this project:
    **honest verified-vs-stage split** — never a bare "yes, 100%". Name
    what could only be validated on a paired PC / real LAN and leave it
    for the user to smoke-test rather than implying it was checked.
+
+---
+
+## 8. Specialist roles, agents & plugins (use them — don't improvise)
+
+Cyber Place is built to a professional standard across four disciplines:
+**architecture, security, design, go-to-market.** Each has a dedicated
+subagent in `~/.claude/agents/` with this product's real constraints baked
+in.
+
+| Agent | Use it for (kiosk-agent-relevant) |
+|---|---|
+| `cp-security-engineer` | **First stop for this repo.** The agent runs on a machine customers can physically touch: assume DevTools, local storage, and request replay are available to an attacker. It must hold no credential beyond its own pairing, and the backend must re-authorize every command server-side |
+| `cp-frontend-architect` | Overlay lifecycle, socket/command handling, state, TS contracts with the backend |
+| `cp-ui-designer` | The kiosk is a full-screen appliance: huge type, no chrome, no scroll, readable across the room, zero affordances to discover |
+| `cp-backend-architect` | Any change to the pairing or WebSocket command contract — server first, agent mirrors |
+| `cp-release-engineer` | electron-builder packaging, signing, staging-as-separate-app, `electron-updater` rollout |
+
+**Slash commands** (`~/.claude/commands/`): `/cp-secure`, `/cp-feature`,
+`/cp-ship`, `/cp-design`.
+
+**Plugins enabled in every session:**
+
+- **`superpowers`** — brainstorming, TDD, systematic debugging,
+  verification-before-completion.
+- **`frontend-design`** — invoke before writing any UI.
+- **`code-review`** — `/code-review` on the branch diff before pushing.
+- **`aikido`** — `aikido:scan` on changed files after non-trivial work.
+- **`context7`** — current Electron docs instead of memory.
+
+**Agent-specific defaults these roles enforce**: never `hide()` or
+`minimize()` the overlay — use opacity-0 + click-through + offscreen;
+graceful quit is SIGTERM + a 2–4s wait before SIGKILL (a hard kill shows
+the Chromium fatal-error popup); `endsAt: null` means an open session and
+must stay `Date | null` end to end; typecheck **both** tsconfigs; and
+anything that can only be proven on a paired PC or a real LAN stays a
+named user smoke-test, never an implied pass.
 
 ---
 
