@@ -282,6 +282,45 @@ must stay `Date | null` end to end; typecheck **both** tsconfigs; and
 anything that can only be proven on a paired PC or a real LAN stays a
 named user smoke-test, never an implied pass.
 
+## 9. How work must be done here (MANDATORY — and read the ceiling)
+
+1. **Baseline BEFORE touching anything.**
+   ```
+   npm run typecheck   # BOTH tsconfig.app.json and electron/tsconfig.json
+   npm run build       # proves renderer AND main process compile
+   ```
+
+2. **Check the blast radius before editing.** All seven `/agent/*` endpoints
+   live in `cyber-place`; grep it before changing any request or response
+   shape. Remember the agent subscribes to **no** realtime channel — it polls
+   REST, so there is no broadcast contract to keep in step here.
+
+3. **Reuse this repo's own idiom** — never `hide()`/`minimize()` the overlay
+   (opacity-0 + click-through + offscreen), `Date | null` end to end for
+   `endsAt`, the on-screen keypad rather than `<input type="number">`.
+
+4. **Re-run typecheck and build**, compare against step 1.
+
+5. **`aikido_full_scan` every changed file.**
+
+6. **Commit to `staging`**, stating what was verified versus only reasoned about.
+
+**⚠️ Proof ceiling here: LOW, and it must be stated every time.** This repo has
+**no test runner at all**. The honest ceiling is typecheck plus a successful
+build. Never claim a change is "verified working" on the agent — the things
+that actually matter here (kiosk escape, autostart, lock behaviour, a packaged
+build honouring or ignoring an env var, behaviour on a real club LAN) can only
+be confirmed on a paired PC. Name them as smoke-tests.
+
+**Security posture is decided at BUILD time, never by the environment.** This
+machine is physically accessible to customers, so `process.env` is
+attacker-controlled input. `isDev` is `!app.isPackaged` and must stay that way.
+
+**Known gap worth closing:** vitest over the pure modules would move the
+ceiling — `Session.remainingMs`/`extend` and the `endsAt: null` semantics,
+`SessionManager` command routing, `RestPollingTransport` dedupe and backoff,
+`AgentConfig.normalize`. All pure, all safety-critical, all unverified today.
+
 ---
 
 _Last verified: 2026-07-18. When the agent's stack, OS integration, or
