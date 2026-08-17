@@ -1,4 +1,4 @@
-import { BrowserWindow, app, globalShortcut, ipcMain, screen, session, shell } from "electron";
+import { BrowserWindow, app, globalShortcut, ipcMain, screen, session } from "electron";
 import { existsSync } from "node:fs";
 import { hostname } from "node:os";
 import { join } from "node:path";
@@ -14,8 +14,16 @@ interface AgentStoredConfig {
   pairingToken: string;
 }
 
-const DEV_URL = process.env.ELECTRON_DEV_URL ?? "";
-const isDev = DEV_URL.length > 0 || !app.isPackaged;
+// `isDev` is decided by how the app was BUILT, never by the environment it is
+// started in. A packaged build used to honour ELECTRON_DEV_URL, so a player
+// could relaunch the installed binary with that variable set and get, in one
+// shot: kiosk guards skipped, a normal closable window, DevTools open, and an
+// attacker-controlled page loaded WITH the preload attached — which hands out
+// window.agentAPI.unlock() / .shutdown() / .getConfig() (the pairing token).
+// This agent runs on machines customers can physically touch, so its start
+// environment is attacker-controlled and must not decide security posture.
+const isDev = !app.isPackaged;
+const DEV_URL = isDev ? (process.env.ELECTRON_DEV_URL ?? "") : "";
 const KIOSK = !isDev; // never kiosk in dev so we can debug
 
 // Silence Chromium diagnostic chatter for end users.
@@ -108,9 +116,23 @@ const createWindow = async () => {
     mainWindow.setAlwaysOnTop(true, "screen-saver");
   }
 
+  // The kiosk is a full-screen appliance with no legitimate reason to open
+  // anything externally. Handing the URL to shell.openExternal first meant the
+  // OS still acted on whatever the renderer asked for — any scheme, including
+  // file:// and Windows handler URIs. Deny outright and log instead.
   mainWindow.webContents.setWindowOpenHandler(({ url }: { url: string }) => {
-    shell.openExternal(url);
+    console.warn("[kiosk] blocked window.open to", url);
     return { action: "deny" as const };
+  });
+
+  // Nothing may navigate the top-level frame away from the bundled page: the
+  // preload (and therefore agentAPI) would follow it to the new origin.
+  mainWindow.webContents.on("will-navigate", (event, url) => {
+    const current = mainWindow?.webContents.getURL() ?? "";
+    if (url !== current) {
+      event.preventDefault();
+      console.warn("[kiosk] blocked navigation to", url);
+    }
   });
 
   if (isDev && DEV_URL) {
