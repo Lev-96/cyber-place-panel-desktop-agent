@@ -27,6 +27,8 @@ interface HelloResponse {
   branch?: {
     unlock_pin_hash?: string | null;
     unlock_pin_updated_at?: string | null;
+    /** Venue taken out of service by an administrator (own block or its company's). */
+    is_blocked?: boolean;
   };
 }
 
@@ -48,6 +50,7 @@ const fetchIdentity = async (
   pcLabel: string;
   unlockPinHash: string | null;
   unlockPinUpdatedAt: string | null;
+  branchBlocked: boolean;
 }> => {
   const res = await fetch(`${serverUrl.replace(/\/$/, "")}/agent/hello`, {
     method: "GET",
@@ -76,6 +79,9 @@ const fetchIdentity = async (
     pcLabel: label,
     unlockPinHash: json.branch?.unlock_pin_hash ?? null,
     unlockPinUpdatedAt: json.branch?.unlock_pin_updated_at ?? null,
+    // Absent on an older backend ⇒ treated as open, which is the behaviour
+    // every kiosk had before this field existed.
+    branchBlocked: json.branch?.is_blocked === true,
   };
 };
 
@@ -124,6 +130,10 @@ export const bootstrapAgent = async (stored: AgentStoredConfig): Promise<BootRes
       pcLabel: "...",
       unlockPinHash: null,
       unlockPinUpdatedAt: null,
+      // Unreachable server ⇒ say nothing about the venue. Announcing a
+      // block we could not confirm would put "closed" on the screen of a
+      // kiosk whose branch is open and whose network merely blinked.
+      branchBlocked: false,
     };
   }
 

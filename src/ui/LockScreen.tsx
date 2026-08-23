@@ -186,7 +186,17 @@ const LockScreen = ({ config, status }: Props) => {
       </svg>
       <form className="card" onSubmit={submit}>
         <h1>{config.pcLabel}</h1>
-        <p className="hint">Попросите кассира начать сессию для этого ПК.</p>
+        {config.branchBlocked ? (
+          /* A closed venue cannot be handed a session at all — the server
+             refuses the staff side. Saying so is the whole point: a kiosk
+             that just never starts reads as a broken PC, and the player
+             calls the cashier about the wrong problem. */
+          <p className="hint" style={{ color: "#f5a623" }}>
+            Филиал временно заблокирован администратором. Сессии здесь не запускаются.
+          </p>
+        ) : (
+          <p className="hint">Попросите кассира начать сессию для этого ПК.</p>
+        )}
         {(status === "error" || status === "disconnected") && (
           <p className="hint" style={{ color: "#f5a623" }}>
             Нет связи с сервером — PIN проверяется локально.

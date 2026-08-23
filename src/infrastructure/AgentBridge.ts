@@ -81,6 +81,13 @@ export interface AgentRuntimeConfig {
   pcLabel: string;
   unlockPinHash: string | null;
   unlockPinUpdatedAt: string | null;
+  /**
+   * The venue is out of service — an administrator blocked this branch or its
+   * company. The kiosk cannot be handed a session while that is true (staff
+   * are refused server-side), so this exists to EXPLAIN the closed screen
+   * rather than leave a player staring at a PC that looks broken.
+   */
+  branchBlocked: boolean;
 }
 
 export const agentBridge = (() => {
