@@ -221,13 +221,30 @@ document the new command here.
 
 ## 6. Testing constraints
 
-- **No CI test suite yet** beyond manual smoke. Don't claim "tests pass"
-  if no tests exist for the code being touched. Write them or say so.
-- **The dev laptop cannot test Wake-on-LAN.** Realtek RTL8821CE has no
-  WoWLAN. Anything WoL-related is a dead end on this machine — needs a
-  wired Ethernet target.
+**There is a test runner now — `vitest`, added 2026-09-03.** Until then this
+repo had none, and its ceiling was typecheck plus a build. That was accurate
+and it was expensive: the session state machine on a kiosk is exactly the code
+where "it compiles" is worth least, because the failure mode is a locked
+workstation with a player behind it. The bug that prompted it shipped past a
+clean typecheck AND a clean build.
 
----
+    npm test          # vitest run
+    npm run test:watch
+
+Deliberately minimal — node environment, no DOM, no setup file. What is
+testable without Electron is `src/domain` and `src/services`, and that is where
+the bugs have actually been. `src/services/SessionManager.test.ts` is the first
+one: it drives the manager through a fake transport with fake timers and
+asserts the kiosk does not lock a session that has no end.
+
+**Still not testable here, and still the honest ceiling:** anything touching
+Electron itself — the lock overlay, D-Bus, the login item, the auto-updater.
+For those it remains typecheck (BOTH tsconfigs) plus a build, plus a smoke test
+on a real kiosk, and saying more than that is a lie.
+
+**When you fix a bug in the session lifecycle, write the test.** The one in
+this file would have caught the `endsAt: null` regression in a second, and no
+amount of re-reading the code did.
 
 ## 7. AI Assistant Behaviour (for me, Claude)
 
