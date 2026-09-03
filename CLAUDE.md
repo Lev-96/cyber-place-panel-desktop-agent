@@ -168,6 +168,17 @@ branch — so the two yml files never conflict:
   a fixed duration", the backend sends `endsAt: null`. The agent stack
   must accept `Date | null` end-to-end. **Never do `new Date(maybeNull)`**
   — that produces 1970 and silently fires the expiry path.
+- **`endsAt: null` on a session UPDATE is not noise — it is a session that
+  has just been given no end.** Since 2026-09-03 a cashier can switch a paid
+  block to unlimited, and the backend expresses that by nulling `ends_at` and
+  sending `session.update`. `onSessionUpdate` used to dismiss that case as
+  "rare" and return, which left the countdown running against the OLD end: the
+  agent expired the session and locked the workstation under a player whose
+  session had explicitly been given no end. It now calls
+  `Session.makeOpenEnded()` and drops out of `expiring` as well as out of the
+  countdown. `extend()` deliberately does NOT accept null — its whole rule is
+  "never bring the end forward", and null is the absence of an end rather than
+  an earlier one.
 - **Typecheck command:** ALWAYS run both
   `tsc -p tsconfig.app.json --noEmit` **and** `tsc -p electron/tsconfig.json --noEmit`.
   The root config silently misses `src/` errors that CI catches.

@@ -53,4 +53,21 @@ export class Session {
       this.endsAt = newEnd;
     }
   }
+
+  /**
+   * Drop the fixed end: this session now runs until a cashier stops it.
+   *
+   * The case is a cashier switching a paid block to unlimited, which the
+   * backend expresses by nulling `ends_at` and sending `session.update` with
+   * `endsAt: null`. Until this existed the agent ignored that message and kept
+   * counting down to the old end — and then locked the workstation under a
+   * player whose session had explicitly been given no end.
+   *
+   * Deliberately NOT folded into {@see extend}: that method's whole rule is
+   * "never bring the end forward", and null is not a smaller date, it is the
+   * absence of one. A caller asking for open-ended has to say so.
+   */
+  makeOpenEnded() {
+    this.endsAt = null;
+  }
 }
