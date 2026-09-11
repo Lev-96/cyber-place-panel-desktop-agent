@@ -199,7 +199,7 @@ const LockScreen = ({ config, status }: Props) => {
         )}
         {(status === "error" || status === "disconnected") && (
           <p className="hint" style={{ color: "#f5a623" }}>
-            Нет связи с сервером — PIN проверяется локально.
+            Нет связи с сервером. PIN проверяется локально.
           </p>
         )}
         <input

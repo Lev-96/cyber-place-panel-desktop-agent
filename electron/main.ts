@@ -158,7 +158,7 @@ app.whenReady().then(async () => {
   ensureLinuxDesktopIntegration({
     appId: "cyberplace-client-agent",
     displayName: "Cyberplace",
-    comment: "Cyber Place kiosk agent — gaming PC lock/unlock controller",
+    comment: "Cyber Place kiosk agent: gaming PC lock/unlock controller",
     iconSourcePath: bundledIconPath(),
   });
 
