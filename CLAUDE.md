@@ -185,6 +185,15 @@ branch — so the two yml files never conflict:
 - **Confirm dialogs / number inputs:** use in-app `ConfirmDialog` and the
   `NumberStepper` text pattern; native `window.confirm()` and
   `<input type="number">` both poison renderer focus on Linux WMs.
+- **No em dash in user-facing text.** The kiosk screen is read across the
+  room: a rendered string must never contain `—`. Use a hyphen, a colon, or
+  two sentences; in Armenian use `՝` or `։`, as the panel and the backend now
+  do. It covers the `en` / `ru` / `am` UI strings, overlay and error copy and
+  any literal rendered in JSX. Comments, docs and `console`/log text are out
+  of scope. Check: `git grep -n "—" -- src`, then classify each hit as
+  (a) user-facing (fix), (b) technical or log output (leave), (c) comment or
+  doc (leave). A sweep on 2026-09-12 fixed 3 strings here (24 in the panel,
+  5 in the backend); what remains in `src` is comments and log/dev output.
 - **DevTools:** auto-detached DevTools poison focus too. They are gated on
   `!app.isPackaged` — a build-time fact. Never gate them, or kiosk mode, on an
   environment variable: the machine's environment is attacker-controlled.
