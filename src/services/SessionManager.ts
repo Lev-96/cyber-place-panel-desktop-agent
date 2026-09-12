@@ -139,11 +139,22 @@ export class SessionManager {
 
   private onSessionUpdate(p: SessionUpdatePayload) {
     if (!this.session || this.session.id !== p.sessionId) return;
-    // null endsAt on update is rare (would mean "convert this
-    // session into open-mode") — Session.extend handles it
-    // null-safely but we still skip the state churn for it
-    // since open sessions don't have a countdown.
-    if (p.endsAt === null) return;
+    // `endsAt: null` means this session no longer has an end — a cashier
+    // switched a paid block to unlimited. It used to be dismissed as "rare"
+    // and returned on, which left the countdown running against the OLD end:
+    // the agent then expired the session and locked the workstation under a
+    // player whose session had explicitly been given no end. It is not rare
+    // any more, and it was never safe to ignore.
+    if (p.endsAt === null) {
+      this.session.makeOpenEnded();
+      // Out of `expiring` as well as out of the countdown. A session with no
+      // end can never be "about to expire", and the warning UI would otherwise
+      // stay on screen for the rest of the evening.
+      if (this.state.kind === "active" || this.state.kind === "expiring") {
+        this.setState({ kind: "active", sessionId: this.session.id, endsAt: null });
+      }
+      return;
+    }
     this.session.extend(new Date(p.endsAt));
     if (this.state.kind === "active" || this.state.kind === "expiring") {
       const expiringSoon = this.session.isExpiringSoon(new Date(), EXPIRING_THRESHOLD_MS);

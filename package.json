@@ -3,7 +3,7 @@
   "version": "1.0.23",
   "private": true,
   "main": "electron/dist/main.js",
-  "description": "Cyber Place kiosk agent — runs on each gaming PC, locks the workstation when no session is active, and unlocks when the cashier starts one.",
+  "description": "Cyber Place kiosk agent: runs on each gaming PC, locks the workstation when no session is active, and unlocks when the cashier starts one.",
   "homepage": "https://cyberplace.pro",
   "license": "UNLICENSED",
   "author": {
@@ -24,7 +24,9 @@
     "dist:linux": "npm run build && electron-builder --linux",
     "dist:win": "npm run build && electron-builder --win",
     "dist:mac": "npm run build && electron-builder --mac",
-    "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p electron/tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p electron/tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -42,6 +44,7 @@
     "electron": "^33.0.0",
     "electron-builder": "^25.1.8",
     "typescript": "^5.6.3",
-    "vite": "^5.4.10"
+    "vite": "^5.4.10",
+    "vitest": "^3.2.7"
   }
 }

@@ -3,6 +3,7 @@ import { AgentRuntimeConfig, AgentStoredConfig } from "@/infrastructure/AgentBri
 import { agentConfig } from "@/infrastructure/AgentConfig";
 import { pinCache } from "@/infrastructure/PinCache";
 import { bootstrapAgent, refreshIdentity } from "@/services/AgentBootstrap";
+import { startAgentTelemetry, trackAgent } from "@/infrastructure/telemetry";
 import { SessionManager } from "@/services/SessionManager";
 import { TransportStatus } from "@/transport/ITransport";
 import { useEffect, useState } from "react";
@@ -38,9 +39,18 @@ const AgentApp = () => {
       const boot = await bootstrapAgent(stored);
       manager = boot.manager;
       setRuntime(boot.config);
+      // Start reporting only now: before bootstrap we do not know which
+      // backend this kiosk belongs to, and a kiosk reporting to the wrong
+      // environment is worse than one reporting nothing.
+      startAgentTelemetry(boot.config.serverUrl, boot.config.branchId ?? null);
       // Stash the hash for offline rescue (no-op when null).
       pinCache.save(boot.config.unlockPinHash);
-      detachers.push(manager.on("state", setState));
+      detachers.push(manager.on("state", (next) => {
+        setState(next);
+        // The kiosk lifecycle IS the interesting signal for this app: how
+        // often machines are handed to a player and released again.
+        trackAgent("session.state", { name: String(next) });
+      }));
       detachers.push(manager.on("remaining", setRemaining));
       // Live transport connectivity, re-emitted by the manager. Drives the
       // status pill and the LockScreen's online/offline PIN path.
