@@ -189,3 +189,80 @@ describe("a session with no end", () => {
     expect(states.some((s) => s.kind === "locked")).toBe(false);
   });
 });
+
+/**
+ * A transport whose status actually changes, which the one above does not: it
+ * reports "disconnected" until `connect()` runs, exactly as
+ * RestPollingTransport does. That change is the one the screen used to miss.
+ */
+class LateTransport implements ITransport {
+  private statusHandlers: Array<(s: TransportStatus) => void> = [];
+  private state: TransportStatus = "disconnected";
+
+  async connect(): Promise<void> {
+    this.state = "connected";
+    this.statusHandlers.forEach((h) => h("connected"));
+  }
+  close(): void {}
+  send(): void {}
+  onCommand(): () => void { return () => {}; }
+  onStatus(handler: (s: TransportStatus) => void): () => void {
+    this.statusHandlers.push(handler);
+    return () => {};
+  }
+  status(): TransportStatus { return this.state; }
+}
+
+/**
+ * The second bug this file exists for, found on 2026-09-18 while photographing
+ * the lock screen for the website.
+ *
+ * `AgentApp` awaits `bootstrapAgent()`, which awaits `manager.start()`, which
+ * awaits `transport.connect()` — and connect() is what emits the first
+ * "connected". By the time the component subscribes, that emission is gone,
+ * and nothing sends it again: the poll loop only calls setStatus() when the
+ * status CHANGES, and it has not changed. A kiosk that was online showed
+ * "Нет связи с сервером" until something else disturbed the connection.
+ *
+ * Not cosmetic. `LockScreen` chooses between the online and the offline PIN
+ * path from this same value, so the emergency unlock on a freshly booted PC
+ * was verified against a locally cached hash that a first boot does not have.
+ */
+describe("a screen that subscribes after the manager has connected", () => {
+  const build = () => new SessionManager(
+    new LateTransport(),
+    { branchId: 1, pcId: 1, pcLabel: "№1" } as never,
+    "machine-1",
+    "1.0.0",
+  );
+
+  it("misses the first status event, because events do not replay", async () => {
+    const manager = build();
+    await manager.start();
+
+    const seen: TransportStatus[] = [];
+    manager.on("status", (s) => seen.push(s));
+
+    expect(seen).toEqual([]);
+  });
+
+  it("can read the status it missed", async () => {
+    const manager = build();
+    await manager.start();
+
+    manager.on("status", () => {});
+
+    expect(manager.status()).toBe("connected");
+  });
+
+  it("can read the state it missed", async () => {
+    const manager = build();
+    await manager.start();
+
+    expect(manager.current().kind).toBe("locked");
+  });
+
+  it("reports disconnected before anything has connected", () => {
+    expect(build().status()).toBe("disconnected");
+  });
+});

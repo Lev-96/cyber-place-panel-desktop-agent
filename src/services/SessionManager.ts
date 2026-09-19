@@ -84,6 +84,15 @@ export class SessionManager {
 
   on<K extends keyof Events>(e: K, l: (p: Events[K]) => void) { return this.emitter.on(e, l); }
   current(): AgentState { return this.state; }
+  /**
+   * The transport's connectivity right now.
+   *
+   * The "status" event only fires on a CHANGE, and the first change happens
+   * inside `start()` — before any UI can have subscribed. A subscriber that
+   * attaches afterwards has to be able to read the value it missed, which is
+   * what `current()` and `remainingMs()` already do for the other two.
+   */
+  status(): TransportStatus { return this.transport.status(); }
   /** Mirrors `Session.remainingMs()` — null for open sessions, 0 when no session. */
   remainingMs(): number | null { return this.session ? this.session.remainingMs() : 0; }
 
