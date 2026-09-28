@@ -55,6 +55,25 @@ const AgentApp = () => {
       // Live transport connectivity, re-emitted by the manager. Drives the
       // status pill and the LockScreen's online/offline PIN path.
       detachers.push(manager.on("status", setStatus));
+
+      // Catch up on everything that happened before this subscription.
+      //
+      // `bootstrapAgent()` awaits `manager.start()`, which awaits
+      // `transport.connect()`, and connect() is what emits the first
+      // "connected" — so by the time these listeners attach, that emission is
+      // already gone. Nothing emits it again: the poll loop only calls
+      // setStatus() when the status CHANGES, and it has not changed. The
+      // kiosk therefore sat at the initial "disconnected" while online, and
+      // that is not cosmetic: LockScreen picks the offline PIN path from this
+      // same value, so an emergency unlock on a freshly booted PC verified
+      // against a cached hash it may not have had yet.
+      //
+      // The manager already exposes the current value of all three for
+      // exactly this reason; reading them after subscribing (not before)
+      // means an event arriving in between cannot be lost either.
+      setState(manager.current());
+      setStatus(manager.status());
+      setRemaining(manager.remainingMs());
     })();
 
     return () => {

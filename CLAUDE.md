@@ -324,6 +324,7 @@ named user smoke-test, never an implied pass.
 1. **Baseline BEFORE touching anything.**
    ```
    npm run typecheck   # BOTH tsconfig.app.json and electron/tsconfig.json
+   npm test            # vitest over the pure modules — 10 tests as of 2026-09-19
    npm run build       # proves renderer AND main process compile
    ```
 
@@ -342,9 +343,11 @@ named user smoke-test, never an implied pass.
 
 6. **Commit to `staging`**, stating what was verified versus only reasoned about.
 
-**⚠️ Proof ceiling here: LOW, and it must be stated every time.** This repo has
-**no test runner at all**. The honest ceiling is typecheck plus a successful
-build. Never claim a change is "verified working" on the agent — the things
+**⚠️ Proof ceiling here: LOW-MEDIUM, and it must be stated every time.** This
+repo *does* have a test runner now — vitest, over the pure modules
+(`src/services/SessionManager.test.ts`) — so a state-machine change can be
+proved by running something. Everything else is still typecheck plus a
+successful build. Never claim a change is "verified working" on the agent — the things
 that actually matter here (kiosk escape, autostart, lock behaviour, a packaged
 build honouring or ignoring an env var, behaviour on a real club LAN) can only
 be confirmed on a paired PC. Name them as smoke-tests.
@@ -353,13 +356,36 @@ be confirmed on a paired PC. Name them as smoke-tests.
 machine is physically accessible to customers, so `process.env` is
 attacker-controlled input. `isDev` is `!app.isPackaged` and must stay that way.
 
-**Known gap worth closing:** vitest over the pure modules would move the
-ceiling — `Session.remainingMs`/`extend` and the `endsAt: null` semantics,
-`SessionManager` command routing, `RestPollingTransport` dedupe and backoff,
-`AgentConfig.normalize`. All pure, all safety-critical, all unverified today.
+**Known gap, now partly closed:** vitest covers `Session.remainingMs`/`extend`
+and the `endsAt: null` semantics, plus the late-subscriber contract below.
+Still unverified and worth the same treatment: `SessionManager` command
+routing beyond those paths, `RestPollingTransport` dedupe and backoff, and
+`AgentConfig.normalize`. All pure, all safety-critical.
+
+**An event fired before the UI subscribed is gone (2026-09-19).** `AgentApp`
+awaits `bootstrapAgent()`, which awaits `manager.start()`, which awaits
+`transport.connect()` — and connect() is what emits the first "connected". The
+component subscribes after all of that, so the emission was already gone, and
+nothing sent it again: the poll loop only calls `setStatus()` when the status
+CHANGES. **A kiosk that was online showed "Нет связи с сервером" indefinitely**,
+and it was not cosmetic — `LockScreen` picks the online or the offline PIN path
+from that same value, so an emergency unlock on a freshly booted PC was
+verified against a locally cached hash a first boot does not have.
+
+The fix is the repo's existing idiom, not a new mechanism: `SessionManager`
+already exposed `current()` and `remainingMs()` so a subscriber can read what
+it missed, and it now also exposes `status()`. `AgentApp` reads all three
+**after** attaching its listeners, so an event arriving in between cannot be
+lost either. **Any new subscriber to this emitter must do the same** — nothing
+replays.
+
+Proved both ways, not reasoned: four vitest cases (mutation-tested — breaking
+`status()` two ways fails them), and the kiosk itself driven in a browser
+against a stand-in backend, where the lock screen reads "Online" immediately
+with the fix and "Offline / Нет связи с сервером" without it, 40s later still.
 
 ---
 
-_Last verified: 2026-07-18. When the agent's stack, OS integration, or
+_Last verified: 2026-09-19. When the agent's stack, OS integration, or
 pairing/WebSocket contract changes, update the relevant section here in
 the same change._
