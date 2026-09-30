@@ -324,7 +324,7 @@ named user smoke-test, never an implied pass.
 1. **Baseline BEFORE touching anything.**
    ```
    npm run typecheck   # BOTH tsconfig.app.json and electron/tsconfig.json
-   npm test            # vitest over the pure modules — 10 tests as of 2026-09-19
+   npm test            # vitest over the pure modules — 13 tests as of 2026-10-01
    npm run build       # proves renderer AND main process compile
    ```
 
@@ -389,3 +389,10 @@ with the fix and "Offline / Нет связи с сервером" without it, 4
 _Last verified: 2026-09-19. When the agent's stack, OS integration, or
 pairing/WebSocket contract changes, update the relevant section here in
 the same change._
+
+## Address block (2026-10-01)
+
+- `src/services/networkBlock.ts`: `RestPollingTransport` raises `ip_blocked` / `country_blocked` from a 403 and clears it on the next accepted answer.
+- The lock screen then says the venue's address is closed by the administrator, instead of "no connection".
+- Like a branch block, it does NOT end running sessions and keeps the local emergency PIN.
+- Tests: `src/services/networkBlock.test.ts`.
