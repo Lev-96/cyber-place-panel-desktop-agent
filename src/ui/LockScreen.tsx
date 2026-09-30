@@ -1,8 +1,9 @@
 import { agentBridge, AgentRuntimeConfig } from "@/infrastructure/AgentBridge";
 import { pinCache } from "@/infrastructure/PinCache";
+import { networkBlock } from "@/services/networkBlock";
 import { verifyPinOffline, verifyPinOnline } from "@/services/UnlockPinService";
 import { TransportStatus } from "@/transport/ITransport";
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import BrandMark from "./BrandMark";
 import StatusPill from "./StatusPill";
 
@@ -40,6 +41,7 @@ const ATTEMPT_WINDOW_MS = 60_000;
 const LOCKOUT_MS = 60_000;
 
 const LockScreen = ({ config, status }: Props) => {
+  const blocked = useSyncExternalStore(networkBlock.subscribe, networkBlock.current, networkBlock.current);
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -197,7 +199,13 @@ const LockScreen = ({ config, status }: Props) => {
         ) : (
           <p className="hint">Попросите кассира начать сессию для этого ПК.</p>
         )}
-        {(status === "error" || status === "disconnected") && (
+        {blocked ? (
+          /* The administrator blocked the venue's address (2026-10-01): the
+             server is reachable and refusing, which is not "no connection". */
+          <p className="hint" style={{ color: "#f5a623" }}>
+            Доступ с IP-адреса этого клуба к Cyber Place закрыт администратором. PIN проверяется локально.
+          </p>
+        ) : (status === "error" || status === "disconnected") && (
           <p className="hint" style={{ color: "#f5a623" }}>
             Нет связи с сервером. PIN проверяется локально.
           </p>

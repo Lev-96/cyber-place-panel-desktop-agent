@@ -1,6 +1,7 @@
 import { logger } from "@/infrastructure/Logger";
 import { TypedEventEmitter } from "@/infrastructure/TypedEventEmitter";
 import { AgentEvent, AgentHeartbeatPayload, PROTOCOL_VERSION, ServerCommand } from "@/protocol/Messages";
+import { networkBlock, networkBlockCodeOf } from "@/services/networkBlock";
 import { ITransport, TransportStatus } from "./ITransport";
 
 interface Events {
@@ -143,8 +144,16 @@ export class RestPollingTransport implements ITransport {
       headers,
       body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const text = await res.text();
+    if (!res.ok) {
+      // The administrator blocked the venue's address: say so, not "offline".
+      let body: unknown = null;
+      try { body = text ? JSON.parse(text) : null; } catch { /* not JSON */ }
+      const blocked = networkBlockCodeOf(res.status, body);
+      if (blocked) networkBlock.raise(blocked);
+      throw new Error(`HTTP ${res.status}`);
+    }
+    networkBlock.clear();
     return text ? JSON.parse(text) : null;
   }
 
