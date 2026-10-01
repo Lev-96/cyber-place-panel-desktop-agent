@@ -392,7 +392,7 @@ the same change._
 
 ## Address block (2026-10-01)
 
-- `src/services/networkBlock.ts`: `RestPollingTransport` raises `ip_blocked` / `country_blocked` from a 403 and clears it on the next accepted answer.
-- The lock screen then says the venue's address is closed by the administrator, instead of "no connection".
+- `src/services/networkBlock.ts`: `RestPollingTransport` raises `access_blocked` / `access_suspended` (legacy `ip_blocked` / `country_blocked` still understood) from a 403 and clears it on the next accepted answer.
+- The lock screen then says access to Cyber Place is closed (or, when the system blocked it, that suspicious activity was detected), instead of "no connection". It never says what was blocked.
 - Like a branch block, it does NOT end running sessions and keeps the local emergency PIN.
 - Tests: `src/services/networkBlock.test.ts`.
