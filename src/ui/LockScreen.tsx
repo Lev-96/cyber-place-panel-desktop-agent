@@ -200,10 +200,12 @@ const LockScreen = ({ config, status }: Props) => {
           <p className="hint">Попросите кассира начать сессию для этого ПК.</p>
         )}
         {blocked ? (
-          /* The administrator blocked the venue's address (2026-10-01): the
-             server is reachable and refusing, which is not "no connection". */
+          /* This PC's address is blocked (2026-10-01): the server is reachable
+             and refusing, which is not "no connection". Never says what. */
           <p className="hint" style={{ color: "#f5a623" }}>
-            Доступ с IP-адреса этого клуба к Cyber Place закрыт администратором. PIN проверяется локально.
+            {blocked === "suspended"
+              ? "Система обнаружила подозрительные действия. Доступ к Cyber Place заблокирован. PIN проверяется локально."
+              : "Доступ к Cyber Place закрыт. PIN проверяется локально."}
           </p>
         ) : (status === "error" || status === "disconnected") && (
           <p className="hint" style={{ color: "#f5a623" }}>

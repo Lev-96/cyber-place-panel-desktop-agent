@@ -11,9 +11,11 @@ const reply = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 
 describe("networkBlockCodeOf", () => {
-  it("recognises exactly the two block codes on a 403", () => {
-    expect(networkBlockCodeOf(403, { code: "ip_blocked" })).toBe("ip_blocked");
-    expect(networkBlockCodeOf(403, { code: "country_blocked" })).toBe("country_blocked");
+  it("recognises the block codes on a 403 as a kind", () => {
+    expect(networkBlockCodeOf(403, { code: "access_blocked" })).toBe("blocked");
+    expect(networkBlockCodeOf(403, { code: "access_suspended" })).toBe("suspended");
+    expect(networkBlockCodeOf(403, { code: "ip_blocked" })).toBe("blocked");
+    expect(networkBlockCodeOf(403, { code: "country_blocked" })).toBe("blocked");
     expect(networkBlockCodeOf(403, { code: "branch_blocked" })).toBeNull();
     expect(networkBlockCodeOf(401, { code: "ip_blocked" })).toBeNull();
     expect(networkBlockCodeOf(403, null)).toBeNull();
@@ -45,9 +47,9 @@ describe("the transport", () => {
 
   it("raises the block from a refused poll and clears it when the server answers again", async () => {
     const t = transport();
-    fetchMock.mockImplementation(async () => reply(403, { message: "Your IP is blocked.", code: "ip_blocked" }));
+    fetchMock.mockImplementation(async () => reply(403, { message: "You have been blocked.", code: "access_blocked" }));
     await poll(t);
-    expect(networkBlock.current()).toBe("ip_blocked");
+    expect(networkBlock.current()).toBe("blocked");
     expect(t.status()).toBe("error");
 
     fetchMock.mockImplementation(async () => reply(200, { commands: [] }));
