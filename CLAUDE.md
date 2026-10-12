@@ -410,8 +410,8 @@ the same change._
   destroyed after 10 s; one at a time. The kiosk window and its guards are
   not touched. IPC `agent:sessionWarning` takes a validated integer only and
   only from the kiosk renderer; the text is built in main
-  (`electron/sessionToast.ts`, tested) in the OS language (`app.getLocale()`:
-  hy → Armenian, en → English, else Russian).
+  (`electron/sessionToast.ts`, tested), always in Armenian
+  (`PLAYER_TOAST_LANG`, product decision 2026-10-12).
 - Proof ceiling: logic is unit-tested; whether a top-level window stays above
   an EXCLUSIVE-fullscreen DirectX game on Windows is only provable on a real
   gaming PC (borderless/windowed games are fine).
