@@ -396,3 +396,23 @@ the same change._
 - The lock screen then says access to Cyber Place is closed (or, when the system blocked it, that suspicious activity was detected), instead of "no connection". It never says what was blocked.
 - Like a branch block, it does NOT end running sessions and keeps the local emergency PIN.
 - Tests: `src/services/networkBlock.test.ts`.
+
+## Session ending warning (2026-10-12)
+
+- Command `session.ending_soon {sessionId, endsAt, minutesLeft}` (backend
+  `SessionEndingSoonService`). `SessionManager.onSessionEndingSoon` shows it
+  only for the running session, with an end ahead, minutes 1..60, once per
+  `sessionId|endsAt` (a re-delivery is ignored; a new end after an extension
+  is warned again). It never changes state or locks.
+- Shown by the MAIN process (`electron/sessionToastWindow.ts`) in a separate
+  small window: top-right, `focusable:false`, `showInactive`, click-through,
+  `alwaysOnTop("screen-saver")`, no preload, sandboxed, `javascript:false`,
+  destroyed after 10 s; one at a time. The kiosk window and its guards are
+  not touched. IPC `agent:sessionWarning` takes a validated integer only and
+  only from the kiosk renderer; the text is built in main
+  (`electron/sessionToast.ts`, tested) in the OS language (`app.getLocale()`:
+  hy → Armenian, en → English, else Russian).
+- Proof ceiling: logic is unit-tested; whether a top-level window stays above
+  an EXCLUSIVE-fullscreen DirectX game on Windows is only provable on a real
+  gaming PC (borderless/windowed games are fine).
+
