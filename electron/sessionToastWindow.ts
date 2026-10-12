@@ -1,5 +1,5 @@
-import { BrowserWindow, app, screen } from "electron";
-import { TOAST_MS, toastHtml, toastLangOf } from "./sessionToast";
+import { BrowserWindow, screen } from "electron";
+import { PLAYER_TOAST_LANG, TOAST_MS, toastHtml } from "./sessionToast";
 import { TOAST_LOGO_DATA_URI } from "./toastLogo";
 
 /**
@@ -65,6 +65,6 @@ export const showSessionToast = (minutes: number): void => {
   current = { win, timer };
   win.on("closed", () => { if (current?.win === win) { clearTimeout(current.timer); current = null; } });
 
-  const html = toastHtml(minutes, toastLangOf(app.getLocale()), TOAST_LOGO_DATA_URI);
+  const html = toastHtml(minutes, PLAYER_TOAST_LANG, TOAST_LOGO_DATA_URI);
   void win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`).catch(() => close());
 };

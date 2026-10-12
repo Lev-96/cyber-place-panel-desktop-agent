@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { TOAST_MS, toastHtml, toastLangOf, toastText, validMinutes } from "./sessionToast";
+import { PLAYER_TOAST_LANG, TOAST_MS, toastHtml, toastText, validMinutes } from "./sessionToast";
 import { TOAST_LOGO_DATA_URI } from "./toastLogo";
 
 /** The player-facing "session ends soon" text and page (2026-10-12). */
@@ -13,12 +13,9 @@ describe("sessionToast", () => {
     for (const bad of [0, 61, 1.5, "15", null, undefined, NaN, {}]) expect(validMinutes(bad)).toBeNull();
   });
 
-  it("picks the language from the OS locale, Russian otherwise", () => {
-    expect(toastLangOf("hy-AM")).toBe("am");
-    expect(toastLangOf("en-US")).toBe("en");
-    expect(toastLangOf("ru")).toBe("ru");
-    expect(toastLangOf("de-DE")).toBe("ru");
-    expect(toastLangOf("")).toBe("ru");
+  it("speaks Armenian to the player, whatever the PC's language", () => {
+    expect(PLAYER_TOAST_LANG).toBe("am");
+    expect(toastHtml(15, PLAYER_TOAST_LANG, TOAST_LOGO_DATA_URI)).toContain("Մինչև խաղային սեսիայի ավարտը մնացել է 15\u00a0րոպե։");
   });
 
   it("says it in each language, with Russian plurals", () => {

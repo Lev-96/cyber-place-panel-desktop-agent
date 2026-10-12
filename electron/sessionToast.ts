@@ -19,15 +19,11 @@ export const validMinutes = (value: unknown): number | null =>
   typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 60 ? value : null;
 
 /**
- * The player's language, from the OS locale (`app.getLocale()`): Armenian,
- * English, otherwise Russian, the language the kiosk already speaks to players.
+ * The player's message is always in Armenian (2026-10-12, product decision),
+ * whatever the language of the PC's Windows. The other languages stay in
+ * `toastText` so switching is a one-line change here.
  */
-export const toastLangOf = (locale: string | null | undefined): ToastLang => {
-  const l = (locale ?? "").toLowerCase();
-  if (l.startsWith("hy")) return "am";
-  if (l.startsWith("en")) return "en";
-  return "ru";
-};
+export const PLAYER_TOAST_LANG: ToastLang = "am";
 
 const ruMinutes = (n: number): string => {
   const mod10 = n % 10;
