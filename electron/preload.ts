@@ -14,6 +14,8 @@ contextBridge.exposeInMainWorld("agentAPI", {
   shutdown: (): Promise<void> => ipcRenderer.invoke("agent:shutdown"),
   getMachineId: (): Promise<string> => ipcRenderer.invoke("agent:getMachineId"),
   getAppVersion: (): Promise<string> => ipcRenderer.invoke("agent:getAppVersion"),
+  // A number of minutes only; the main process builds the message itself.
+  showSessionWarning: (minutes: number): Promise<void> => ipcRenderer.invoke("agent:sessionWarning", minutes),
 });
 
 // Auto-update bridge — same shape as panel's `window.cyberplaceUpdates`

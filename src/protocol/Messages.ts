@@ -8,6 +8,12 @@ export type ServerCommandKind =
   | "session.start"
   | "session.update"
   | "session.stop"
+  /**
+   * The running session is in its last minutes (2026-10-12). Sent once per
+   * session end by the backend (`SessionEndingSoonService`); the agent shows a
+   * 10-second, non-blocking message. An agent that predates it logs and acks it.
+   */
+  | "session.ending_soon"
   | "agent.lock"
   | "agent.unlock"
   | "agent.reboot"
@@ -95,4 +101,11 @@ export interface AgentHeartbeatPayload {
   state: "locked" | "active" | "idle";
   sessionId?: number;
   remainingSec?: number;
+}
+
+/** `session.ending_soon`: which session, its planned end, the minutes left when it was said. */
+export interface SessionEndingSoonPayload {
+  sessionId: number;
+  endsAt: string; // ISO
+  minutesLeft: number;
 }

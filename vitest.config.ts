@@ -18,6 +18,7 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["src/**/*.test.ts"],
+    // + the pure, Electron-free parts of the main process (sessionToast).
+    include: ["src/**/*.test.ts", "electron/**/*.test.ts"],
   },
 });

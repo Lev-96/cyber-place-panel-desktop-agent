@@ -5,6 +5,8 @@ import { join } from "node:path";
 import { FileStore } from "./storage";
 import { AgentUpdateService, broadcastUpdateState } from "./updates/UpdateService";
 import { bundledIconPath, ensureLinuxDesktopIntegration } from "./linuxIntegration";
+import { validMinutes } from "./sessionToast";
+import { showSessionToast } from "./sessionToastWindow";
 
 // On-disk shape — only the pairing token. Everything else (server URL,
 // branch/PC ID, PC label, emergency PIN hash) is either compile-time
@@ -212,6 +214,15 @@ app.whenReady().then(async () => {
   });
   ipcMain.handle("agent:shutdown", () => { unlocked = true; app.quit(); });
 
+  // "Session ends in N minutes" (2026-10-12). Only the kiosk's own renderer
+  // may ask, and only with a whole number of minutes: no text crosses this
+  // bridge, so nothing it carries can end up drawn over the player's game.
+  ipcMain.handle("agent:sessionWarning", (e, minutes: unknown) => {
+    if (!mainWindow || e.sender !== mainWindow.webContents) return;
+    const n = validMinutes(minutes);
+    if (n === null) return;
+    try { showSessionToast(n); } catch { /* a message that cannot be drawn never blocks the session */ }
+  });
   ipcMain.handle("agent:getMachineId", () => safeMachineId());
   ipcMain.handle("agent:getAppVersion", () => app.getVersion());
 

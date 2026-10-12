@@ -9,6 +9,7 @@ import {
   AgentHelloPayload,
   PROTOCOL_VERSION,
   ServerCommand,
+  SessionEndingSoonPayload,
   SessionStartPayload,
   SessionStopPayload,
   SessionUpdatePayload,
@@ -29,6 +30,8 @@ interface Events {
    * online (server) vs offline (cached) PIN-verification path.
    */
   status: TransportStatus;
+  /** "Session ends in N minutes" was shown to the player (2026-10-12). */
+  warning: number;
 }
 
 const HEARTBEAT_MS = 5_000;
@@ -42,6 +45,8 @@ export class SessionManager {
   private heartbeat: ReturnType<typeof setInterval> | null = null;
   private tick: ReturnType<typeof setInterval> | null = null;
   private detachers: Array<() => void> = [];
+  /** Warnings already shown, by session AND end: a re-delivered command is shown once. */
+  private warned = new Set<string>();
 
   constructor(
     private transport: ITransport,
@@ -101,6 +106,7 @@ export class SessionManager {
       case "session.start": return this.onSessionStart(cmd.payload as SessionStartPayload);
       case "session.update": return this.onSessionUpdate(cmd.payload as SessionUpdatePayload);
       case "session.stop": return this.onSessionStop(cmd.payload as SessionStopPayload);
+      case "session.ending_soon": return this.onSessionEndingSoon(cmd.payload as SessionEndingSoonPayload);
       case "agent.lock": return this.forceLock();
       case "agent.unlock": return this.allowUnlock();
       case "agent.shutdown": return void agentBridge?.shutdown();
@@ -173,6 +179,30 @@ export class SessionManager {
           : { kind: "active", sessionId: this.session.id, endsAt: this.session.endsAt },
       );
     }
+  }
+
+  /**
+   * Show "ends in N minutes" for 10 s, once — only for the session running
+   * here, only while it still has an end ahead of it. A command that arrives
+   * late (agent was offline), for another session, after the end moved to
+   * open, or a second time for the same end, shows nothing. The key includes
+   * the end, so a session extended after its warning is warned again before
+   * its new end, as the backend intends.
+   */
+  private onSessionEndingSoon(p: SessionEndingSoonPayload) {
+    const session = this.session;
+    if (!session || !p || session.id !== p.sessionId || session.endsAt === null) return;
+    const minutes = p.minutesLeft;
+    if (typeof minutes !== "number" || !Number.isInteger(minutes) || minutes < 1 || minutes > 60) return;
+    const remaining = session.remainingMs();
+    if (remaining === null || remaining <= 0) return;
+    const key = `${p.sessionId}|${p.endsAt}`;
+    if (this.warned.has(key)) return;
+    this.warned.add(key);
+    // The minutes as they are NOW on this machine, never more than were sent.
+    const shown = Math.max(1, Math.min(minutes, Math.ceil(remaining / 60_000)));
+    this.emitter.emit("warning", shown);
+    void agentBridge?.showSessionWarning?.(shown);
   }
 
   private onSessionStop(p: SessionStopPayload) {
