@@ -416,3 +416,11 @@ the same change._
   an EXCLUSIVE-fullscreen DirectX game on Windows is only provable on a real
   gaming PC (borderless/windowed games are fine).
 
+
+## Brand mark (2026-10-17)
+
+`public/logo.png` (328x200, transparent) is the new 1.64:1 "CP" mark, shown by
+`BrandMark` at a fixed 56px height (`.brand-logo`, width follows). `build/icon.ico`
+(16–256) and `build/icon.png` (1024) are the mark on a rounded navy tile. The
+toast logo in `electron/toastLogo.ts` already carried this artwork and was not
+changed. Generator: `~/cyber-place-local/reports/branding-2026-10-17/brand-kit/`.
