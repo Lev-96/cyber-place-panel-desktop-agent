@@ -402,8 +402,14 @@ the same change._
 - Command `session.ending_soon {sessionId, endsAt, minutesLeft}` (backend
   `SessionEndingSoonService`). `SessionManager.onSessionEndingSoon` shows it
   only for the running session, with an end ahead, minutes 1..60, once per
-  `sessionId|endsAt` (a re-delivery is ignored; a new end after an extension
-  is warned again). It never changes state or locks.
+  `sessionId|endsAt|stage` (2026-10-18: the backend warns at 15 and again at 5
+  minutes; stage = `minutesLeft > 5 ? first : final`, fixed per command, so a
+  re-delivery is ignored and the second warning is not). A warning for an end
+  EARLIER than the one this machine holds is stale (extended since) and shows
+  nothing; a later end (extension not delivered yet) is shown, with the
+  minutes to that end. It never changes state or locks.
+- One OS beep as the message appears (`TOAST_SOUND`, `shell.beep()`), once per
+  shown message; silent where the OS has sounds off.
 - Shown by the MAIN process (`electron/sessionToastWindow.ts`) in a separate
   small window: top-right, `focusable:false`, `showInactive`, click-through,
   `alwaysOnTop("screen-saver")`, no preload, sandboxed, `javascript:false`,
