@@ -108,4 +108,37 @@ describe("the session ending-soon message", () => {
     expect(manager.current()).toEqual(before);
     expect(manager.current().kind).toBe("active");
   });
+
+  // ---- 15 and 5 minutes (2026-10-18) -------------------------------------
+
+  it("the 5-minute warning after the 15-minute one is shown, not taken for a repeat", () => {
+    vi.setSystemTime(new Date("2026-10-12T17:45:00.000Z"));
+    warn();
+    vi.setSystemTime(new Date("2026-10-12T17:55:00.000Z"));
+    warn({ minutesLeft: 5 });
+    expect(shown).toEqual([15, 5]);
+  });
+
+  it("each of the two is shown once however often it is redelivered", () => {
+    vi.setSystemTime(new Date("2026-10-12T17:45:00.000Z"));
+    warn(); warn();
+    vi.setSystemTime(new Date("2026-10-12T17:55:00.000Z"));
+    warn({ minutesLeft: 5 }); warn({ minutesLeft: 5 }); warn();
+    expect(shown).toEqual([15, 5]);
+  });
+
+  it("a warning for the end before an extension is stale and shows nothing", () => {
+    transport.deliver(command("session.update", { sessionId: 7, endsAt: "2026-10-12T18:10:00.000Z" }));
+    vi.setSystemTime(new Date("2026-10-12T17:56:00.000Z"));
+    // Sent for the old 18:00 end, arriving after the extension to 18:10.
+    warn({ minutesLeft: 5 });
+    expect(shown).toEqual([]);
+  });
+
+  it("a warning for a later end whose extension has not arrived yet is shown, with the minutes to that end", () => {
+    // This machine still holds 18:00; the backend already moved it to 18:10.
+    vi.setSystemTime(new Date("2026-10-12T17:58:00.000Z"));
+    warn({ endsAt: "2026-10-12T18:10:00.000Z", minutesLeft: 12 });
+    expect(shown).toEqual([12]);
+  });
 });

@@ -49,3 +49,10 @@ describe("sessionToast", () => {
     expect(TOAST_LOGO_DATA_URI.length).toBeGreaterThan(1000);
   });
 });
+
+describe("the sound (2026-10-18)", () => {
+  it("is on: one OS beep as each message appears", async () => {
+    const { TOAST_SOUND } = await import("./sessionToast");
+    expect(TOAST_SOUND).toBe(true);
+  });
+});

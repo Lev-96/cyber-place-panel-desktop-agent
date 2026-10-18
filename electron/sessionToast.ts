@@ -14,6 +14,15 @@ export type ToastLang = "ru" | "en" | "am";
 /** How long the message stays on screen. */
 export const TOAST_MS = 10_000;
 
+/**
+ * One short system sound as the message appears (2026-10-18), so a player
+ * looking at a game rather than the corner of the screen notices it. The OS's
+ * own notification beep (Electron `shell.beep()`): no audio file, nothing
+ * looped, and silent where the OS has sounds off. Played only when a message
+ * is shown, which the session manager allows once per warning.
+ */
+export const TOAST_SOUND = true;
+
 /** A whole number of minutes 1..60, or null: anything else is refused. */
 export const validMinutes = (value: unknown): number | null =>
   typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 60 ? value : null;

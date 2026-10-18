@@ -1,5 +1,5 @@
-import { BrowserWindow, screen } from "electron";
-import { PLAYER_TOAST_LANG, TOAST_MS, toastHtml } from "./sessionToast";
+import { BrowserWindow, screen, shell } from "electron";
+import { PLAYER_TOAST_LANG, TOAST_MS, TOAST_SOUND, toastHtml } from "./sessionToast";
 import { TOAST_LOGO_DATA_URI } from "./toastLogo";
 
 /**
@@ -59,7 +59,13 @@ export const showSessionToast = (minutes: number): void => {
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   win.webContents.on("will-navigate", (e) => e.preventDefault());
-  win.once("ready-to-show", () => { if (!win.isDestroyed()) win.showInactive(); });
+  win.once("ready-to-show", () => {
+    if (win.isDestroyed()) return;
+    win.showInactive();
+    if (TOAST_SOUND) {
+      try { shell.beep(); } catch { /* a machine with no sound is still told */ }
+    }
+  });
 
   const timer = setTimeout(close, TOAST_MS);
   current = { win, timer };
