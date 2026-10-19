@@ -324,7 +324,7 @@ named user smoke-test, never an implied pass.
 1. **Baseline BEFORE touching anything.**
    ```
    npm run typecheck   # BOTH tsconfig.app.json and electron/tsconfig.json
-   npm test            # vitest over the pure modules — 10 tests as of 2026-09-19
+   npm test            # vitest over the pure modules — 13 tests as of 2026-10-01
    npm run build       # proves renderer AND main process compile
    ```
 
@@ -389,3 +389,44 @@ with the fix and "Offline / Нет связи с сервером" without it, 4
 _Last verified: 2026-09-19. When the agent's stack, OS integration, or
 pairing/WebSocket contract changes, update the relevant section here in
 the same change._
+
+## Address block (2026-10-01)
+
+- `src/services/networkBlock.ts`: `RestPollingTransport` raises `access_blocked` / `access_suspended` (legacy `ip_blocked` / `country_blocked` still understood) from a 403 and clears it on the next accepted answer.
+- The lock screen then says access to Cyber Place is closed (or, when the system blocked it, that suspicious activity was detected), instead of "no connection". It never says what was blocked.
+- Like a branch block, it does NOT end running sessions and keeps the local emergency PIN.
+- Tests: `src/services/networkBlock.test.ts`.
+
+## Session ending warning (2026-10-12)
+
+- Command `session.ending_soon {sessionId, endsAt, minutesLeft}` (backend
+  `SessionEndingSoonService`). `SessionManager.onSessionEndingSoon` shows it
+  only for the running session, with an end ahead, minutes 1..60, once per
+  `sessionId|endsAt|stage` (2026-10-18: the backend warns at 15 and again at 5
+  minutes; stage = `minutesLeft > 5 ? first : final`, fixed per command, so a
+  re-delivery is ignored and the second warning is not). A warning for an end
+  EARLIER than the one this machine holds is stale (extended since) and shows
+  nothing; a later end (extension not delivered yet) is shown, with the
+  minutes to that end. It never changes state or locks.
+- One OS beep as the message appears (`TOAST_SOUND`, `shell.beep()`), once per
+  shown message; silent where the OS has sounds off.
+- Shown by the MAIN process (`electron/sessionToastWindow.ts`) in a separate
+  small window: top-right, `focusable:false`, `showInactive`, click-through,
+  `alwaysOnTop("screen-saver")`, no preload, sandboxed, `javascript:false`,
+  destroyed after 10 s; one at a time. The kiosk window and its guards are
+  not touched. IPC `agent:sessionWarning` takes a validated integer only and
+  only from the kiosk renderer; the text is built in main
+  (`electron/sessionToast.ts`, tested), always in Armenian
+  (`PLAYER_TOAST_LANG`, product decision 2026-10-12).
+- Proof ceiling: logic is unit-tested; whether a top-level window stays above
+  an EXCLUSIVE-fullscreen DirectX game on Windows is only provable on a real
+  gaming PC (borderless/windowed games are fine).
+
+
+## Brand mark (2026-10-17)
+
+`public/logo.png` (328x200, transparent) is the new 1.64:1 "CP" mark, shown by
+`BrandMark` at a fixed 56px height (`.brand-logo`, width follows). `build/icon.ico`
+(16–256) and `build/icon.png` (1024) are the mark on a rounded navy tile. The
+toast logo in `electron/toastLogo.ts` already carried this artwork and was not
+changed. Generator: `~/cyber-place-local/reports/branding-2026-10-17/brand-kit/`.

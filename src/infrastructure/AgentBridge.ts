@@ -33,6 +33,8 @@ declare global {
 
       getMachineId(): Promise<string>;
       getAppVersion(): Promise<string>;
+      /** Absent on an agent built before 2026-10-12: feature-detect. */
+      showSessionWarning?(minutes: number): Promise<void>;
     };
     /**
      * Same bridge name as the panel. Undefined outside the Electron

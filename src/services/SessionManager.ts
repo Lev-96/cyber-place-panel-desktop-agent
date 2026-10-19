@@ -9,6 +9,7 @@ import {
   AgentHelloPayload,
   PROTOCOL_VERSION,
   ServerCommand,
+  SessionEndingSoonPayload,
   SessionStartPayload,
   SessionStopPayload,
   SessionUpdatePayload,
@@ -29,11 +30,18 @@ interface Events {
    * online (server) vs offline (cached) PIN-verification path.
    */
   status: TransportStatus;
+  /** "Session ends in N minutes" was shown to the player (2026-10-12). */
+  warning: number;
 }
 
 const HEARTBEAT_MS = 5_000;
 const TICK_MS = 1_000;
 const EXPIRING_THRESHOLD_MS = 60_000;
+
+/** The backend's second warning (`SessionEndingSoonService::FINAL_WARN_MINUTES`). */
+const FINAL_WARNING_MINUTES = 5;
+/** Ends are whole seconds on both sides; a second of slack absorbs rounding. */
+const STALE_END_TOLERANCE_MS = 1_000;
 
 export class SessionManager {
   private emitter = new TypedEventEmitter<Events>();
@@ -42,6 +50,8 @@ export class SessionManager {
   private heartbeat: ReturnType<typeof setInterval> | null = null;
   private tick: ReturnType<typeof setInterval> | null = null;
   private detachers: Array<() => void> = [];
+  /** Warnings already shown, by session AND end: a re-delivered command is shown once. */
+  private warned = new Set<string>();
 
   constructor(
     private transport: ITransport,
@@ -101,6 +111,7 @@ export class SessionManager {
       case "session.start": return this.onSessionStart(cmd.payload as SessionStartPayload);
       case "session.update": return this.onSessionUpdate(cmd.payload as SessionUpdatePayload);
       case "session.stop": return this.onSessionStop(cmd.payload as SessionStopPayload);
+      case "session.ending_soon": return this.onSessionEndingSoon(cmd.payload as SessionEndingSoonPayload);
       case "agent.lock": return this.forceLock();
       case "agent.unlock": return this.allowUnlock();
       case "agent.shutdown": return void agentBridge?.shutdown();
@@ -173,6 +184,42 @@ export class SessionManager {
           : { kind: "active", sessionId: this.session.id, endsAt: this.session.endsAt },
       );
     }
+  }
+
+  /**
+   * Show "ends in N minutes" for 10 s, once — only for the session running
+   * here, only while it still has an end ahead of it. A command that arrives
+   * late (agent was offline), for another session, after the end moved to
+   * open, or a second time for the same end, shows nothing. The key includes
+   * the end, so a session extended after its warning is warned again before
+   * its new end, as the backend intends.
+   *
+   * Since 2026-10-18 the backend says it twice per end: 15 and 5 minutes
+   * before. The key carries which of the two (by the minutes it was sent with,
+   * fixed per command), so a redelivered command still shows nothing while the
+   * second warning is not mistaken for a repeat of the first. A warning for an
+   * end EARLIER than the one this machine already knows is stale (the session
+   * was extended after it was sent) and shows nothing; one for a later end is
+   * shown, since the extension it belongs to may simply not have arrived yet.
+   */
+  private onSessionEndingSoon(p: SessionEndingSoonPayload) {
+    const session = this.session;
+    if (!session || !p || session.id !== p.sessionId || session.endsAt === null) return;
+    const minutes = p.minutesLeft;
+    if (typeof minutes !== "number" || !Number.isInteger(minutes) || minutes < 1 || minutes > 60) return;
+    const remaining = session.remainingMs();
+    if (remaining === null || remaining <= 0) return;
+    const sentEnd = Date.parse(String(p.endsAt));
+    if (!Number.isFinite(sentEnd) || sentEnd < session.endsAt.getTime() - STALE_END_TOLERANCE_MS) return;
+    const stage = minutes > FINAL_WARNING_MINUTES ? "first" : "final";
+    const key = `${p.sessionId}|${p.endsAt}|${stage}`;
+    if (this.warned.has(key)) return;
+    this.warned.add(key);
+    // The minutes as they are NOW on this machine's clock, to the end the
+    // backend named (the newer of the two), never more than were sent.
+    const shown = Math.max(1, Math.min(minutes, Math.ceil((sentEnd - Date.now()) / 60_000)));
+    this.emitter.emit("warning", shown);
+    void agentBridge?.showSessionWarning?.(shown);
   }
 
   private onSessionStop(p: SessionStopPayload) {
