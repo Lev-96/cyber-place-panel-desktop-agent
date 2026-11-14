@@ -84,18 +84,41 @@ input { font: inherit; color: inherit; outline: none; }
     #020514;
 }
 
-/* `.brand` is now a flex wrapper (logo + wordmark). The gradient
+/* `.brand-row` is the flex row (logo + wordmark) inside `.brand`. The gradient
  * + animated letter-spacing live on `.brand-text` so the bitmap
  * logo isn't masked by `background-clip: text` or distorted by
  * letter-spacing changes. The wrapper still owns the entrance
  * animation so logo and wordmark fade in together. */
 .brand {
+  position: relative;
+  margin-bottom: 24px;
+  animation: cp-brand-in 480ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.brand-row {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 14px;
-  margin-bottom: 24px;
-  animation: cp-brand-in 480ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+/* Installed version (2026-11-14). Absolutely placed inside the 24px gap
+ * under the mark: it takes no layout space, so the PIN pad, the timer and
+ * everything else stay exactly where they were, also when it arrives a
+ * moment after first paint (IPC). Quiet on purpose: staff read it, players
+ * should not notice it. */
+.brand-version {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 14px;
+  letter-spacing: 0.4px;
+  color: #94a3b8;
+  opacity: 0.7;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
 }
 /* The mark is 1.64:1 (2026-10-17): fixed height, the width follows. */
 .brand-logo {
