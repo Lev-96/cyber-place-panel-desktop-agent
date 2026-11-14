@@ -242,7 +242,10 @@ clean typecheck AND a clean build.
 
 Deliberately minimal — node environment, no DOM, no setup file. What is
 testable without Electron is `src/domain` and `src/services`, and that is where
-the bugs have actually been. `src/services/SessionManager.test.ts` is the first
+the bugs have actually been. UI markup can be asserted too, still without a
+DOM: `react-dom/server` `renderToStaticMarkup` (effects do not run, so feed
+state through a `useSyncExternalStore` store's snapshot, as
+`src/ui/appVersion.test.ts` does). `src/services/SessionManager.test.ts` is the first
 one: it drives the manager through a fake transport with fake timers and
 asserts the kiosk does not lock a session that has no end.
 
@@ -324,7 +327,7 @@ named user smoke-test, never an implied pass.
 1. **Baseline BEFORE touching anything.**
    ```
    npm run typecheck   # BOTH tsconfig.app.json and electron/tsconfig.json
-   npm test            # vitest over the pure modules — 13 tests as of 2026-10-01
+   npm test            # vitest over the pure modules — 41 tests as of 2026-11-14
    npm run build       # proves renderer AND main process compile
    ```
 
@@ -430,3 +433,29 @@ the same change._
 (16–256) and `build/icon.png` (1024) are the mark on a rounded navy tile. The
 toast logo in `electron/toastLogo.ts` already carried this artwork and was not
 changed. Generator: `~/cyber-place-local/reports/branding-2026-10-17/brand-kit/`.
+
+## Version line under the brand (2026-11-14)
+
+`BrandMark` (Lock / Offline / Setup / Active) shows a small "Версия X" line
+under the logo and the name. Source of truth is the main process's
+`app.getVersion()` (package.json of the installed app) through the EXISTING
+`agentAPI.getAppVersion()` bridge, the same call `AgentBootstrap` makes; no new
+IPC. `__APP_VERSION__` (vite define, used by telemetry) is not used for it.
+`src/ui/appVersion.ts` reads it once, lazily, in the `networkBlock`
+subscribe/current shape; no bridge, a failed call or an empty answer means no
+line, nothing else changes. Russian like the rest of the kiosk copy (the agent
+UI has no i18n layer). `.brand-version` is `position: absolute` inside the 24px
+gap under `.brand-row`, so it takes no layout space: measured in the built app,
+every lock-screen control (badge, card, input, keypad, submit, status pill)
+sits at the same pixel before and after the change. Tests:
+`src/ui/appVersion.test.ts`; Electron e2e (outside the repo):
+`~/cyber-place-local/reports/agent-version-2026-11-14/`.
+
+**Running the built agent safely on a dev machine** (how that e2e does it):
+launch it unpackaged (`electron <repo>`, so `isDev` ⇒ no kiosk, no fullscreen,
+no global shortcuts, closable window), with `HOME` and `XDG_CONFIG_HOME` set
+to a throwaway directory (userData and any `.desktop` write stay out of the real
+profile), under `xvfb-run`, and with the renderer built with
+`VITE_BACKEND_URL=http://127.0.0.1:9` so it never talks to a real backend
+(the CSP blocks that origin anyway). Rebuild with `npm run build` afterwards.
+
