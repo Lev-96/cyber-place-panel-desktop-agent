@@ -39,4 +39,3 @@ when dependencies change.
 |---|---|---|
 | Inter | SIL Open Font License 1.1 | © 2016 The Inter Project Authors (https://github.com/rsms/inter) |
 | Audiowide | SIL Open Font License 1.1 | © 2012 Brian J. Bonislawsky DBA Astigmatic (AOETI) |
-| PlayStation (`Playstation.ttf`) | **Not established** | The file says "Made by Westral. 2017. All Rights Reserved". Commercial use needs the author's permission or a replacement font. |
