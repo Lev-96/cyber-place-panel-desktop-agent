@@ -459,3 +459,13 @@ profile), under `xvfb-run`, and with the renderer built with
 `VITE_BACKEND_URL=http://127.0.0.1:9` so it never talks to a real backend
 (the CSP blocks that origin anyway). Rebuild with `npm run build` afterwards.
 
+
+## Security pass 2026-11-28 (owner-approved)
+- The cached unlock hash is now THIS PC's own 8-digit offline code (backend `PcOfflineUnlock`), not the branch PIN;
+  online the server takes either. Staff read the code in the panel («Компьютеры» → «Аварийный код»). No agent change
+  was needed for it (the pad takes up to 8 digits; offline compares with whatever hash it was given).
+- Reload keys (Ctrl+R, Ctrl+Shift+R, F5) are refused in this window while it is the lock screen
+  (`before-input-event`, not a global shortcut, so a game keeps F5 during a session).
+- The PIN pad's failures and lockout persist across reloads/restarts (`src/ui/pinGuard.ts`, localStorage).
+- «Перезапустить приложение» on a ready update asks the staff PIN on a paired PC (same verify + shared lockout).
+- The lock stack fits short monitors (≤ 880 px tall: tighter, `safe center`, scrolls as a last resort).
