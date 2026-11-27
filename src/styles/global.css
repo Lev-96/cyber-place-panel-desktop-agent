@@ -269,3 +269,23 @@ input { font: inherit; color: inherit; outline: none; }
 }
 .kbd button:hover { border-color: #07ddf1; }
 .kbd button.del { background: #1a0a14; border-color: #4a1a2a; }
+
+/* Short monitors (2026-11-28, design audit): at 1366×768 and at 1080p with
+   150 % scaling the lock stack (mark, padlock, card with the staff PIN pad)
+   was taller than the screen; centred in a hidden-overflow body it lost the
+   PIN submit button first, offline, exactly when the PIN matters. Below
+   880 px of height the same stack is drawn tighter, and as a last resort the
+   screen scrolls instead of cutting it. Look only: the PIN, the lock and the
+   session logic are untouched. */
+.full { justify-content: safe center; }
+@media (max-height: 880px) {
+  .full { padding: 16px 32px; overflow-y: auto; }
+  .brand { margin-bottom: 14px; }
+  .brand-logo { height: 44px; }
+  .brand-text { font-size: 26px; }
+  .lock-badge { margin-bottom: 10px; width: 52px; height: 52px; }
+  .card { padding: 20px 22px; gap: 10px; }
+  .card .hint { margin: 0; }
+  .kbd { gap: 6px; margin-top: 4px; }
+  .kbd button { padding: 9px 0; font-size: 20px; }
+}
