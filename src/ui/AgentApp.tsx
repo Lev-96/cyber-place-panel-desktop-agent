@@ -132,7 +132,7 @@ const AgentApp = () => {
   return (
     <>
       {screen}
-      <UpdateReadyModal />
+      <UpdateReadyModal config={runtime} status={status} />
     </>
   );
 };

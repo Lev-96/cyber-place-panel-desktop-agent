@@ -1,5 +1,16 @@
-import { AgentUpdateState } from "@/infrastructure/AgentBridge";
-import { useEffect, useState } from "react";
+import { AgentRuntimeConfig, AgentUpdateState } from "@/infrastructure/AgentBridge";
+import { verifyPinOffline, verifyPinOnline } from "@/services/UnlockPinService";
+import { TransportStatus } from "@/transport/ITransport";
+import { FormEvent, useEffect, useState } from "react";
+import { ATTEMPT_WINDOW_MS, LOCKOUT_MS, loadGuard, saveGuard } from "./pinGuard";
+
+interface Props {
+  /** Present once the PC is paired: then the restart asks for the staff PIN (2026-11-28). */
+  config?: AgentRuntimeConfig | null;
+  status?: TransportStatus;
+}
+
+const MAX_ATTEMPTS = 5;
 
 /**
  * Non-closeable "update ready" modal — same UX shape as the panel.
@@ -14,11 +25,21 @@ import { useEffect, useState } from "react";
  * Non-closeable means: no ESC handler, no backdrop dismiss, no
  * close X, no `onClose` prop. The only way forward is the Restart
  * button — which invokes `quitAndInstall(false, true)` in the main
- * process.
+ * process — and on a paired PC it asks the staff PIN first
+ * (2026-11-28, security audit): the modal sits on the player's lock
+ * screen, and the PC is unlocked while the agent reinstalls.
  */
-const UpdateReadyModal = () => {
+const UpdateReadyModal = ({ config = null, status }: Props) => {
   const [state, setState] = useState<AgentUpdateState | null>(null);
   const [restarting, setRestarting] = useState(false);
+  // The restart is staff-only (2026-11-28, security audit): it is shown on
+  // the player's lock screen, and while the agent reinstalls the PC is not
+  // locked. The same PIN as the pad (branch PIN online, this PC's code
+  // offline) and the same shared lockout.
+  const [asking, setAsking] = useState(false);
+  const [pin, setPin] = useState("");
+  const [pinError, setPinError] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined" || !window.cyberplaceUpdates) return;
@@ -40,13 +61,44 @@ const UpdateReadyModal = () => {
 
   const version = state.availableVersion ?? "?";
 
-  const onRestart = () => {
+  const install = () => {
     if (restarting) return;
     setRestarting(true);
     // No await — main process calls quitAndInstall and the agent
     // dies immediately. The flag just disables the button so an
     // accidental double-click doesn't fire two install calls.
     void window.cyberplaceUpdates?.install();
+  };
+
+  const onRestart = () => {
+    if (restarting) return;
+    if (!config) { install(); return; } // not paired yet: nobody to keep out
+    setAsking(true);
+  };
+
+  const confirmPin = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!config || checking) return;
+    const guard = loadGuard();
+    if (guard.until !== null) { setPinError("Слишком много попыток. Подождите минуту."); return; }
+    if (pin.length < 4) { setPinError("Введите PIN персонала"); return; }
+    setChecking(true);
+    try {
+      let ok: boolean | null;
+      if (status === "connected") {
+        try { ok = await verifyPinOnline(config, pin); } catch { ok = await verifyPinOffline(config, pin); }
+      } else {
+        ok = await verifyPinOffline(config, pin);
+      }
+      if (ok) { saveGuard(null, []); install(); return; }
+      const now = Date.now();
+      const tries = [...guard.tries.filter((t) => now - t < ATTEMPT_WINDOW_MS), now];
+      if (tries.length >= MAX_ATTEMPTS) { saveGuard(now + LOCKOUT_MS, []); setPinError("Слишком много попыток. Подождите минуту."); }
+      else { saveGuard(null, tries); setPinError(ok === null ? "Нет сети, а PIN ещё не сохранён на этом ПК." : "Неверный PIN"); }
+      setPin("");
+    } finally {
+      setChecking(false);
+    }
   };
 
   return (
@@ -65,15 +117,36 @@ const UpdateReadyModal = () => {
           Версия {version} загружена. Перезапустите приложение,
           чтобы завершить обновление.
         </p>
-        <button
-          type="button"
-          className="btn"
-          onClick={onRestart}
-          disabled={restarting}
-          style={{ marginTop: 8 }}
-        >
-          Перезапустить приложение
-        </button>
+        {asking ? (
+          <form onSubmit={confirmPin} style={{ display: "grid", gap: 10, marginTop: 8 }}>
+            <input
+              className="input"
+              value={pin}
+              placeholder="PIN персонала"
+              onChange={(ev) => { setPinError(null); setPin(ev.target.value.replace(/\D/g, "").slice(0, 8)); }}
+              inputMode="numeric"
+              type="password"
+              autoComplete="off"
+              autoFocus
+              disabled={checking || restarting}
+              data-testid="update-restart-pin"
+            />
+            <button type="submit" className="btn" disabled={checking || restarting || pin.length < 4}>
+              {checking ? "Проверка…" : "Подтвердить и перезапустить"}
+            </button>
+            {pinError && <div className="error" style={{ textAlign: "center" }}>{pinError}</div>}
+          </form>
+        ) : (
+          <button
+            type="button"
+            className="btn"
+            onClick={onRestart}
+            disabled={restarting}
+            style={{ marginTop: 8 }}
+          >
+            Перезапустить приложение
+          </button>
+        )}
       </div>
     </div>
   );

@@ -6,6 +6,7 @@ import { TransportStatus } from "@/transport/ITransport";
 import { FormEvent, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import BrandMark from "./BrandMark";
 import StatusPill from "./StatusPill";
+import { ATTEMPT_WINDOW_MS, LOCKOUT_MS, loadGuard, saveGuard } from "./pinGuard";
 
 interface Props {
   config: AgentRuntimeConfig;
@@ -37,16 +38,15 @@ interface Props {
  */
 
 const MAX_ATTEMPTS = 5;
-const ATTEMPT_WINDOW_MS = 60_000;
-const LOCKOUT_MS = 60_000;
+
 
 const LockScreen = ({ config, status }: Props) => {
   const blocked = useSyncExternalStore(networkBlock.subscribe, networkBlock.current, networkBlock.current);
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [lockedOutUntil, setLockedOutUntil] = useState<number | null>(null);
-  const attemptTimestamps = useRef<number[]>([]);
+  const [lockedOutUntil, setLockedOutUntil] = useState<number | null>(() => loadGuard().until);
+  const attemptTimestamps = useRef<number[]>(loadGuard().tries);
 
   // Tick to re-render countdown while the pad is locked out — purely
   // cosmetic, every 1s.
@@ -120,8 +120,10 @@ const LockScreen = ({ config, status }: Props) => {
         if (attemptTimestamps.current.length >= MAX_ATTEMPTS) {
           setLockedOutUntil(now + LOCKOUT_MS);
           attemptTimestamps.current = [];
+          saveGuard(now + LOCKOUT_MS, []);
           setError("Слишком много попыток. Подождите минуту.");
         } else {
+          saveGuard(null, attemptTimestamps.current);
           setError("Неверный PIN");
         }
         setCode("");
@@ -133,6 +135,7 @@ const LockScreen = ({ config, status }: Props) => {
       // block unlock on audit failure — the whole point is "works
       // when the network is broken").
       attemptTimestamps.current = [];
+      saveGuard(null, []);
       setError(null);
       setCode("");
       await agentBridge?.unlock();

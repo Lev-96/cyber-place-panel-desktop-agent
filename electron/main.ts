@@ -118,6 +118,18 @@ const createWindow = async () => {
     mainWindow.setAlwaysOnTop(true, "screen-saver");
   }
 
+  // No reload of the lock screen (2026-11-28, security audit): Electron's
+  // default menu answers Ctrl+Shift+R / Ctrl+R / F5 with a page reload, which
+  // wiped the PIN pad's lockout. Refused in THIS window only, and only while
+  // it is the lock screen: a global shortcut would also take F5 from the
+  // player's game during a session. A development build reloads as usual.
+  mainWindow.webContents.on("before-input-event", (event, input) => {
+    if (isDev || unlocked || input.type !== "keyDown") return;
+    const key = String(input.key || "").toLowerCase();
+    const reload = key === "f5" || ((input.control || input.meta) && key === "r");
+    if (reload) event.preventDefault();
+  });
+
   // The kiosk is a full-screen appliance with no legitimate reason to open
   // anything externally. Handing the URL to shell.openExternal first meant the
   // OS still acted on whatever the renderer asked for — any scheme, including
